@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/database');
+const logger = require('../../utils/logger');
 const env = require('../../config/env');
 const { validateLogin } = require('../../validations/auth-validation');
 
@@ -15,6 +16,7 @@ const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const DUMMY_PASSWORD_HASH = '$2b$12$C6UzMDM.H6dfI/f/IKcEe.cCkHLmVeqzJ7BOWpVDbnDCXpZBb.PWi';
 
 const findProfileByUserId = async (roleName, userId) => {
   const tableName = ROLE_PROFILE_TABLES[roleName];
@@ -49,13 +51,10 @@ const login = async (req, res) => {
   const genericFailureResponse = () =>
     res.status(401).json({ success: false, message: 'Invalid email or password.' });
 
-  if (!user) {
-    return genericFailureResponse();
-  }
+  const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
 
-  const passwordMatches = await bcrypt.compare(password, user.password_hash);
-
-  if (!passwordMatches) {
+  if (!user || !passwordMatches) {
+    logger.warn(`Failed login attempt for ${email} from ${req.ip}`);
     return genericFailureResponse();
   }
 
