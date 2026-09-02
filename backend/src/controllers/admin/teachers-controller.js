@@ -2,7 +2,12 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const pool = require('../../config/database');
 const logger = require('../../utils/logger');
-const { validateCreateTeacher, validatePagination } = require('../../validations/teacher-validation');
+const {
+  validateCreateTeacher,
+  validateUpdateTeacher,
+  validatePagination,
+  normalizePhone,
+} = require('../../validations/teacher-validation');
 
 const TEACHER_ROLE_ID = 2;
 const PASSWORD_LENGTH = 12;
@@ -43,7 +48,7 @@ const createTeacher = async (req, res) => {
   const middleName = req.body.middle_name ? req.body.middle_name.trim() : null;
   const gender = req.body.gender || null;
   const address = req.body.address || null;
-  const contactNumber = req.body.contact_number ? req.body.contact_number.trim() : null;
+  const contactNumber = req.body.contact_number ? normalizePhone(req.body.contact_number).trim() : null;
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
@@ -155,8 +160,118 @@ const getTeacherById = async (req, res) => {
   return res.status(200).json({ success: true, data: rows[0] });
 };
 
+const USER_UPDATE_FIELDS = ['email', 'status'];
+
+const TEACHER_UPDATE_FIELDS = [
+  'employee_number',
+  'first_name',
+  'last_name',
+  'middle_name',
+  'gender',
+  'address',
+  'contact_number',
+];
+
+const normalizeUpdateValue = (field, value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  if (field === 'email') {
+    return value.trim().toLowerCase();
+  }
+
+  if (field === 'contact_number') {
+    return normalizePhone(value).trim();
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  return value;
+};
+
+const buildAssignments = (body, allowedFields) => {
+  const columns = [];
+  const values = [];
+
+  allowedFields.forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(body, field)) {
+      return;
+    }
+
+    columns.push(`${field} = ?`);
+    values.push(normalizeUpdateValue(field, body[field]));
+  });
+
+  return { clause: columns.join(', '), values };
+};
+
+const updateTeacher = async (req, res) => {
+  const validationErrors = validateUpdateTeacher(req.body);
+
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ success: false, message: validationErrors.join(' ') });
+  }
+
+  const teacherId = req.params.id;
+
+  const [existing] = await pool.execute('SELECT id, user_id FROM teachers WHERE id = ?', [teacherId]);
+
+  if (existing.length === 0) {
+    return res.status(404).json({ success: false, message: 'Teacher not found.' });
+  }
+
+  const { user_id: userId } = existing[0];
+  const userUpdate = buildAssignments(req.body, USER_UPDATE_FIELDS);
+  const teacherUpdate = buildAssignments(req.body, TEACHER_UPDATE_FIELDS);
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  await Promise.resolve()
+    .then(() =>
+      userUpdate.clause
+        ? connection.execute(`UPDATE users SET ${userUpdate.clause} WHERE id = ?`, [...userUpdate.values, userId])
+        : null
+    )
+    .then(() =>
+      teacherUpdate.clause
+        ? connection.execute(`UPDATE teachers SET ${teacherUpdate.clause} WHERE id = ?`, [
+            ...teacherUpdate.values,
+            teacherId,
+          ])
+        : null
+    )
+    .then(() => connection.commit())
+    .catch((error) => connection.rollback().then(() => Promise.reject(error)))
+    .finally(() => connection.release());
+
+  const [rows] = await pool.execute(
+    `SELECT ${TEACHER_SELECT_FIELDS}
+     FROM teachers
+     JOIN users ON users.id = teachers.user_id
+     WHERE teachers.id = ?`,
+    [teacherId]
+  );
+
+  logger.info(`Teacher ${teacherId} updated by admin ${req.user.id}`);
+
+  return res.status(200).json({ success: true, data: rows[0] });
+};
+
+const updateTeacherHandler = (req, res, next) =>
+  updateTeacher(req, res).catch((error) => {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Email or employee number is already in use.' });
+    }
+    return next(error);
+  });
+
 module.exports = {
   createTeacher: createTeacherHandler,
   listTeachers,
   getTeacherById,
+  updateTeacher: updateTeacherHandler,
 };
