@@ -52,37 +52,60 @@ Current structure. Backend uses a `src/` layer. Frontend is not created yet.
 school-management/
 │
 ├── CLAUDE.md
+├── .gitignore
+│
+├── .claude/
+│   ├── agents/            # role-specific agent definitions
+│   └── memory/            # project notes
 │
 └── backend/
+    ├── .env               # git-ignored, real secrets
+    ├── .env.example
     ├── package.json
+    │
+    ├── database/
+    │   └── migrations/    # numbered .sql files, applied manually
+    │
     └── src/
+        ├── app.js         # express app, middleware, error handling
+        ├── server.js      # startup, db ping, graceful shutdown
+        │
         ├── config/
+        │   ├── database.js
+        │   └── env.js
         │
         ├── controllers/
         │   ├── admin/
         │   ├── teachers/
         │   ├── students/
         │   ├── parents/
-        │   └── shared/        # auth, messages, notifications
+        │   └── shared/    # auth, messages, notifications
+        │
+        ├── routes/
+        │   ├── admin/
+        │   ├── teachers/
+        │   ├── students/
+        │   ├── parents/
+        │   └── shared/
         │
         ├── middleware/
-        ├── routes/
         ├── utils/
-        └── validations/
+        │   └── logger.js  # winston
+        ├── validations/
+        └── logs/          # git-ignored, winston output
 ```
 
-Controllers are split into one folder per role. Cross-role logic (authentication,
-messaging, notifications) goes in `controllers/shared/`.
+Controllers and routes are both split into one folder per role. Cross-role
+logic (authentication, messaging, notifications) goes in the `shared/` folder
+of each.
+
+`app.js` exports the configured express app and does not listen. `server.js`
+requires it, verifies the database connection, then listens.
 
 Planned additions, not yet created:
 
 ```text
-backend/
-├── .env
-├── .env.example
-└── src/
-    ├── models/
-    └── server.js
+backend/src/models/
 
 frontend/
 ├── src/
@@ -165,9 +188,13 @@ users
 students
 - id
 - user_id
-- student_number
 - first_name
+- middle_name
 - last_name
+- birth_date
+- gender
+- address
+- contact_number
 ...
 ```
 
@@ -365,7 +392,6 @@ Use appropriate indexes for:
 
 - Foreign keys
 - Email
-- Student number
 - Employee number
 - Frequently searched fields
 
@@ -817,6 +843,18 @@ fix: prevent unauthorized student access
 refactor: improve authentication middleware
 ```
 
+## Branches
+
+Remote: https://github.com/dnobleza/sacredheartacademy-portal
+
+```text
+master   production
+dev      integration, all work lands here first
+```
+
+All building must be pushed to `dev` first. Merge `dev` into `master` only
+once the work is verified. Never commit directly to `master`.
+
 ---
 
 # 26. Coding Standards
@@ -894,7 +932,6 @@ Validate:
 ```text
 Email
 Password
-Student number
 Employee number
 Names
 Dates
