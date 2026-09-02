@@ -1,0 +1,3 @@
+- [Stack is JS + MySQL](school-management-stack.md) — repo is plain JavaScript CommonJS + MySQL; the copied agent files describe a different, wrong stack.
+- [Schema state](school-management-schema.md) — 22 tables in `sacred_heart_academy`; `student_parents` and `admins` added by migration 001.
+- [Open gaps](school-management-open-gaps.md) — no git init, no `.gitignore`, real secrets sitting in `backend/.env`.
