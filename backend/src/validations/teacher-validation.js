@@ -180,7 +180,8 @@ const validatePagination = (query) => {
   const page = Number.parseInt(query.page, 10) > 0 ? Number.parseInt(query.page, 10) : 1;
   const rawLimit = Number.parseInt(query.limit, 10);
   const limit = rawLimit > 0 && rawLimit <= 100 ? rawLimit : 20;
-  const search = typeof query.search === 'string' ? query.search.trim() : '';
+  const search =
+    typeof query.search === 'string' ? query.search.trim().replace(/\s+/g, ' ') : '';
   return { page, limit, search };
 };
 

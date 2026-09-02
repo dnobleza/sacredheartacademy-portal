@@ -111,9 +111,15 @@ const listParents = async (req, res) => {
   const offset = (page - 1) * limit;
 
   const searchClause = search
-    ? 'WHERE parents.first_name LIKE ? OR parents.last_name LIKE ? OR users.email LIKE ?'
+    ? `WHERE (
+        parents.first_name LIKE ?
+        OR parents.last_name LIKE ?
+        OR users.email LIKE ?
+        OR CONCAT_WS(' ', parents.first_name, parents.middle_name, parents.last_name) LIKE ?
+        OR CONCAT_WS(' ', parents.first_name, parents.last_name) LIKE ?
+      )`
     : '';
-  const searchParams = search ? Array(3).fill(`%${search}%`) : [];
+  const searchParams = search ? Array(5).fill(`%${search}%`) : [];
 
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM parents JOIN users ON users.id = parents.user_id ${searchClause}`,

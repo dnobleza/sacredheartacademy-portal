@@ -122,9 +122,16 @@ const listTeachers = async (req, res) => {
   const offset = (page - 1) * limit;
 
   const searchClause = search
-    ? 'WHERE teachers.first_name LIKE ? OR teachers.last_name LIKE ? OR teachers.employee_number LIKE ? OR users.email LIKE ?'
+    ? `WHERE (
+        teachers.first_name LIKE ?
+        OR teachers.last_name LIKE ?
+        OR teachers.employee_number LIKE ?
+        OR users.email LIKE ?
+        OR CONCAT_WS(' ', teachers.first_name, teachers.middle_name, teachers.last_name) LIKE ?
+        OR CONCAT_WS(' ', teachers.first_name, teachers.last_name) LIKE ?
+      )`
     : '';
-  const searchParams = search ? Array(4).fill(`%${search}%`) : [];
+  const searchParams = search ? Array(6).fill(`%${search}%`) : [];
 
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM teachers JOIN users ON users.id = teachers.user_id ${searchClause}`,
