@@ -1,0 +1,347 @@
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const pool = require('../../config/database');
+const logger = require('../../utils/logger');
+const HTTP_STATUS = require('../../utils/http-status');
+const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
+const {
+  validateCreateAdmin,
+  validateUpdateAdmin,
+  validatePagination,
+  normalizePhone,
+} = require('../../validations/admin-validation');
+
+const ADMIN_ROLE_ID = 1;
+const PASSWORD_LENGTH = 12;
+
+const generateTemporaryPassword = () => {
+  const raw = crypto.randomBytes(PASSWORD_LENGTH).toString('base64');
+  const sanitized = raw.replace(/[+/=]/g, '');
+  return `${sanitized.slice(0, PASSWORD_LENGTH)}!A1`;
+};
+
+const ADMIN_SELECT_FIELDS = `
+  admins.id,
+  admins.user_id,
+  admins.employee_number,
+  admins.first_name,
+  admins.last_name,
+  admins.middle_name,
+  admins.gender,
+  admins.address,
+  admins.contact_number,
+  admins.created_at,
+  admins.updated_at,
+  users.email,
+  users.status
+`;
+
+const createAdmin = async (req, res) => {
+  const validationErrors = validateCreateAdmin(req.body);
+
+  if (validationErrors.length > 0) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
+  }
+
+  const email = req.body.email.trim().toLowerCase();
+  const employeeNumber = req.body.employee_number.trim();
+  const firstName = req.body.first_name.trim();
+  const lastName = req.body.last_name.trim();
+  const middleName = req.body.middle_name ? req.body.middle_name.trim() : null;
+  const gender = req.body.gender || null;
+  const address = req.body.address || null;
+  const contactNumber = req.body.contact_number
+    ? normalizePhone(req.body.contact_number).trim()
+    : null;
+
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  const admin = await connection
+    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
+      ADMIN_ROLE_ID,
+      email,
+      passwordHash,
+      'active',
+    ])
+    .then(([userResult]) =>
+      connection
+        .execute(
+          `INSERT INTO admins
+            (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            userResult.insertId,
+            employeeNumber,
+            firstName,
+            lastName,
+            middleName,
+            gender,
+            address,
+            contactNumber,
+          ],
+        )
+        .then(([adminResult]) => ({
+          userId: userResult.insertId,
+          adminId: adminResult.insertId,
+        })),
+    )
+    .then((ids) => connection.commit().then(() => ids))
+    .catch((error) => connection.rollback().then(() => Promise.reject(error)))
+    .finally(() => connection.release());
+
+  return sendCreated(res, {
+    id: admin.adminId,
+    user_id: admin.userId,
+    email,
+    employee_number: employeeNumber,
+    first_name: firstName,
+    last_name: lastName,
+    middle_name: middleName,
+    gender,
+    address,
+    contact_number: contactNumber,
+    status: 'active',
+    temporary_password: temporaryPassword,
+  });
+};
+
+const createAdminHandler = (req, res, next) =>
+  createAdmin(req, res).catch((error) => {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return sendError(res, HTTP_STATUS.CONFLICT, 'Email or employee number is already in use.');
+    }
+    return next(error);
+  });
+
+const listAdmins = async (req, res) => {
+  const { page, limit, search } = validatePagination(req.query);
+  const offset = (page - 1) * limit;
+
+  const searchClause = search
+    ? `WHERE (
+        admins.first_name LIKE ?
+        OR admins.last_name LIKE ?
+        OR admins.employee_number LIKE ?
+        OR users.email LIKE ?
+        OR CONCAT_WS(' ', admins.first_name, admins.middle_name, admins.last_name) LIKE ?
+        OR CONCAT_WS(' ', admins.first_name, admins.last_name) LIKE ?
+      )`
+    : '';
+  const searchParams = search ? Array(6).fill(`%${search}%`) : [];
+
+  const [countRows] = await pool.execute(
+    `SELECT COUNT(*) AS total FROM admins JOIN users ON users.id = admins.user_id ${searchClause}`,
+    searchParams,
+  );
+
+  const [rows] = await pool.query(
+    `SELECT ${ADMIN_SELECT_FIELDS}
+     FROM admins
+     JOIN users ON users.id = admins.user_id
+     ${searchClause}
+     ORDER BY admins.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...searchParams, limit, offset],
+  );
+
+  return sendOk(res, {
+    admins: rows,
+    pagination: {
+      page,
+      limit,
+      total: countRows[0].total,
+      totalPages: Math.ceil(countRows[0].total / limit),
+    },
+  });
+};
+
+const getAdminById = async (req, res) => {
+  const adminId = req.params.id;
+
+  const [rows] = await pool.execute(
+    `SELECT ${ADMIN_SELECT_FIELDS}
+     FROM admins
+     JOIN users ON users.id = admins.user_id
+     WHERE admins.id = ?`,
+    [adminId],
+  );
+
+  if (rows.length === 0) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Admin not found.');
+  }
+
+  return sendOk(res, rows[0]);
+};
+
+const USER_UPDATE_FIELDS = ['email', 'status'];
+
+const ADMIN_UPDATE_FIELDS = [
+  'employee_number',
+  'first_name',
+  'last_name',
+  'middle_name',
+  'gender',
+  'address',
+  'contact_number',
+];
+
+const normalizeUpdateValue = (field, value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  if (field === 'email') {
+    return value.trim().toLowerCase();
+  }
+
+  if (field === 'contact_number') {
+    return normalizePhone(value).trim();
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  return value;
+};
+
+const buildAssignments = (body, allowedFields) => {
+  const columns = [];
+  const values = [];
+
+  allowedFields.forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(body, field)) {
+      return;
+    }
+
+    columns.push(`${field} = ?`);
+    values.push(normalizeUpdateValue(field, body[field]));
+  });
+
+  return { clause: columns.join(', '), values };
+};
+
+const updateAdmin = async (req, res) => {
+  const validationErrors = validateUpdateAdmin(req.body);
+
+  if (validationErrors.length > 0) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
+  }
+
+  const adminId = req.params.id;
+
+  const [existing] = await pool.execute('SELECT id, user_id FROM admins WHERE id = ?', [
+    adminId,
+  ]);
+
+  if (existing.length === 0) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Admin not found.');
+  }
+
+  const { user_id: userId } = existing[0];
+  const userUpdate = buildAssignments(req.body, USER_UPDATE_FIELDS);
+  const adminUpdate = buildAssignments(req.body, ADMIN_UPDATE_FIELDS);
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  await Promise.resolve()
+    .then(() =>
+      userUpdate.clause
+        ? connection.execute(`UPDATE users SET ${userUpdate.clause} WHERE id = ?`, [
+            ...userUpdate.values,
+            userId,
+          ])
+        : null,
+    )
+    .then(() =>
+      adminUpdate.clause
+        ? connection.execute(`UPDATE admins SET ${adminUpdate.clause} WHERE id = ?`, [
+            ...adminUpdate.values,
+            adminId,
+          ])
+        : null,
+    )
+    .then(() => connection.commit())
+    .catch((error) => connection.rollback().then(() => Promise.reject(error)))
+    .finally(() => connection.release());
+
+  const [rows] = await pool.execute(
+    `SELECT ${ADMIN_SELECT_FIELDS}
+     FROM admins
+     JOIN users ON users.id = admins.user_id
+     WHERE admins.id = ?`,
+    [adminId],
+  );
+
+  logger.info(`Admin ${adminId} updated by admin ${req.user.userId}`);
+
+  return sendOk(res, rows[0]);
+};
+
+const updateAdminHandler = (req, res, next) =>
+  updateAdmin(req, res).catch((error) => {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return sendError(res, HTTP_STATUS.CONFLICT, 'Email or employee number is already in use.');
+    }
+    return next(error);
+  });
+
+const deleteAdmin = async (req, res) => {
+  const adminId = req.params.id;
+
+  const [existing] = await pool.execute('SELECT id, user_id FROM admins WHERE id = ?', [
+    adminId,
+  ]);
+
+  if (existing.length === 0) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Admin not found.');
+  }
+
+  const { user_id: userId } = existing[0];
+
+  // Diverges from the teachers mirror: an admin deleting their own account
+  // would immediately invalidate the session they're using mid-request,
+  // locking them out. Block self-deletion explicitly.
+  if (userId === req.user.userId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'You cannot delete your own account.');
+  }
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  await connection
+    .execute('DELETE FROM admins WHERE id = ?', [adminId])
+    .then(() => connection.execute('DELETE FROM users WHERE id = ?', [userId]))
+    .then(() => connection.commit())
+    .catch((error) => connection.rollback().then(() => Promise.reject(error)))
+    .finally(() => connection.release());
+
+  logger.info(`Admin ${adminId} deleted by admin ${req.user.userId}`);
+
+  return res.status(HTTP_STATUS.NO_CONTENT).send();
+};
+
+const deleteAdminHandler = (req, res, next) =>
+  deleteAdmin(req, res).catch((error) => {
+    if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+      return sendError(
+        res,
+        HTTP_STATUS.CONFLICT,
+        'Admin is referenced by other records and cannot be deleted.',
+      );
+    }
+    return next(error);
+  });
+
+module.exports = {
+  createAdmin: createAdminHandler,
+  listAdmins,
+  getAdminById,
+  updateAdmin: updateAdminHandler,
+  deleteAdmin: deleteAdminHandler,
+};
