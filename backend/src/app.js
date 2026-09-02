@@ -44,6 +44,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+app.use('/api/auth', require('./routes/shared/auth-routes'));
+app.use('/api/admin/teachers', require('./routes/admin/teachers-routes'));
+
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
