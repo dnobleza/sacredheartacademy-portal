@@ -281,7 +281,6 @@ const updateTeacherHandler = (req, res, next) =>
     if (error.code === 'ER_DUP_ENTRY') {
       return sendError(res, HTTP_STATUS.CONFLICT, 'Email or employee number is already in use.');
     }
-    console.log('================', res.status);
     return next(error);
   });
 
