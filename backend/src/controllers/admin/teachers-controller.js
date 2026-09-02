@@ -38,7 +38,9 @@ const createTeacher = async (req, res) => {
   const validationErrors = validateCreateTeacher(req.body);
 
   if (validationErrors.length > 0) {
-    return res.status(400).json({ success: false, message: validationErrors.join(' ') });
+    return res
+      .status(400)
+      .json({ success: false, code: 400, message: validationErrors.join(' ') });
   }
 
   const email = req.body.email.trim().toLowerCase();
@@ -48,7 +50,9 @@ const createTeacher = async (req, res) => {
   const middleName = req.body.middle_name ? req.body.middle_name.trim() : null;
   const gender = req.body.gender || null;
   const address = req.body.address || null;
-  const contactNumber = req.body.contact_number ? normalizePhone(req.body.contact_number).trim() : null;
+  const contactNumber = req.body.contact_number
+    ? normalizePhone(req.body.contact_number).trim()
+    : null;
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
@@ -57,21 +61,31 @@ const createTeacher = async (req, res) => {
   await connection.beginTransaction();
 
   const teacher = await connection
-    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
-      TEACHER_ROLE_ID,
-      email,
-      passwordHash,
-      'active',
-    ])
+    .execute(
+      'INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)',
+      [TEACHER_ROLE_ID, email, passwordHash, 'active'],
+    )
     .then(([userResult]) =>
       connection
         .execute(
           `INSERT INTO teachers
             (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [userResult.insertId, employeeNumber, firstName, lastName, middleName, gender, address, contactNumber]
+          [
+            userResult.insertId,
+            employeeNumber,
+            firstName,
+            lastName,
+            middleName,
+            gender,
+            address,
+            contactNumber,
+          ],
         )
-        .then(([teacherResult]) => ({ userId: userResult.insertId, teacherId: teacherResult.insertId }))
+        .then(([teacherResult]) => ({
+          userId: userResult.insertId,
+          teacherId: teacherResult.insertId,
+        })),
     )
     .then((ids) => connection.commit().then(() => ids))
     .catch((error) => connection.rollback().then(() => Promise.reject(error)))
@@ -79,6 +93,7 @@ const createTeacher = async (req, res) => {
 
   return res.status(201).json({
     success: true,
+    code: 201,
     data: {
       id: teacher.teacherId,
       user_id: teacher.userId,
@@ -99,7 +114,13 @@ const createTeacher = async (req, res) => {
 const createTeacherHandler = (req, res, next) =>
   createTeacher(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ success: false, message: 'Email or employee number is already in use.' });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          code: 409,
+          message: 'Email or employee number is already in use.',
+        });
     }
     return next(error);
   });
@@ -115,7 +136,7 @@ const listTeachers = async (req, res) => {
 
   const [countRows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM teachers JOIN users ON users.id = teachers.user_id ${searchClause}`,
-    searchParams
+    searchParams,
   );
 
   const [rows] = await pool.query(
@@ -125,11 +146,12 @@ const listTeachers = async (req, res) => {
      ${searchClause}
      ORDER BY teachers.created_at DESC
      LIMIT ? OFFSET ?`,
-    [...searchParams, limit, offset]
+    [...searchParams, limit, offset],
   );
 
   return res.status(200).json({
     success: true,
+    code: 200,
     data: {
       teachers: rows,
       pagination: {
@@ -150,14 +172,16 @@ const getTeacherById = async (req, res) => {
      FROM teachers
      JOIN users ON users.id = teachers.user_id
      WHERE teachers.id = ?`,
-    [teacherId]
+    [teacherId],
   );
 
   if (rows.length === 0) {
-    return res.status(404).json({ success: false, message: 'Teacher not found.' });
+    return res
+      .status(404)
+      .json({ success: false, code: 404, message: 'Teacher not found.' });
   }
 
-  return res.status(200).json({ success: true, data: rows[0] });
+  return res.status(200).json({ success: true, code: 200, data: rows[0] });
 };
 
 const USER_UPDATE_FIELDS = ['email', 'status'];
@@ -212,15 +236,22 @@ const updateTeacher = async (req, res) => {
   const validationErrors = validateUpdateTeacher(req.body);
 
   if (validationErrors.length > 0) {
-    return res.status(400).json({ success: false, message: validationErrors.join(' ') });
+    return res
+      .status(400)
+      .json({ success: false, code: 400, message: validationErrors.join(' ') });
   }
 
   const teacherId = req.params.id;
 
-  const [existing] = await pool.execute('SELECT id, user_id FROM teachers WHERE id = ?', [teacherId]);
+  const [existing] = await pool.execute(
+    'SELECT id, user_id FROM teachers WHERE id = ?',
+    [teacherId],
+  );
 
   if (existing.length === 0) {
-    return res.status(404).json({ success: false, message: 'Teacher not found.' });
+    return res
+      .status(404)
+      .json({ success: false, code: 404, message: 'Teacher not found.' });
   }
 
   const { user_id: userId } = existing[0];
@@ -233,16 +264,19 @@ const updateTeacher = async (req, res) => {
   await Promise.resolve()
     .then(() =>
       userUpdate.clause
-        ? connection.execute(`UPDATE users SET ${userUpdate.clause} WHERE id = ?`, [...userUpdate.values, userId])
-        : null
+        ? connection.execute(
+            `UPDATE users SET ${userUpdate.clause} WHERE id = ?`,
+            [...userUpdate.values, userId],
+          )
+        : null,
     )
     .then(() =>
       teacherUpdate.clause
-        ? connection.execute(`UPDATE teachers SET ${teacherUpdate.clause} WHERE id = ?`, [
-            ...teacherUpdate.values,
-            teacherId,
-          ])
-        : null
+        ? connection.execute(
+            `UPDATE teachers SET ${teacherUpdate.clause} WHERE id = ?`,
+            [...teacherUpdate.values, teacherId],
+          )
+        : null,
     )
     .then(() => connection.commit())
     .catch((error) => connection.rollback().then(() => Promise.reject(error)))
@@ -253,18 +287,22 @@ const updateTeacher = async (req, res) => {
      FROM teachers
      JOIN users ON users.id = teachers.user_id
      WHERE teachers.id = ?`,
-    [teacherId]
+    [teacherId],
   );
 
   logger.info(`Teacher ${teacherId} updated by admin ${req.user.id}`);
 
-  return res.status(200).json({ success: true, data: rows[0] });
+  return res.status(200).json({ success: true, code: 200, data: rows[0] });
 };
 
 const updateTeacherHandler = (req, res, next) =>
   updateTeacher(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ success: false, message: 'Email or employee number is already in use.' });
+      return res.status(409).json({
+        success: false,
+        code: 409,
+        message: 'Email or employee number is already in use.',
+      });
     }
     return next(error);
   });

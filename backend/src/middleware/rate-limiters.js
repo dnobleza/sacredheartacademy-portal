@@ -5,7 +5,7 @@ const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 const buildHandler = (message) => (req, res) => {
   logger.warn(`Rate limit reached: ${req.method} ${req.originalUrl} from ${req.ip}`);
-  return res.status(429).json({ success: false, message });
+  return res.status(429).json({ success: false, code: 429, message });
 };
 
 const generalLimiter = rateLimit({

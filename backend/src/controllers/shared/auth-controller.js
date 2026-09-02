@@ -33,7 +33,7 @@ const login = async (req, res) => {
   const validationErrors = validateLogin(req.body);
 
   if (validationErrors.length > 0) {
-    return res.status(400).json({ success: false, message: validationErrors.join(' ') });
+    return res.status(400).json({ success: false, code: 400, message: validationErrors.join(' ') });
   }
 
   const email = req.body.email.trim().toLowerCase();
@@ -49,7 +49,7 @@ const login = async (req, res) => {
 
   const user = users[0];
   const genericFailureResponse = () =>
-    res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    res.status(401).json({ success: false, code: 401, message: 'Invalid email or password.' });
 
   const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
 
@@ -59,7 +59,7 @@ const login = async (req, res) => {
   }
 
   if (user.status !== 'active') {
-    return res.status(401).json({ success: false, message: 'This account is not active.' });
+    return res.status(401).json({ success: false, code: 401, message: 'This account is not active.' });
   }
 
   const profile = await findProfileByUserId(user.role, user.id);
@@ -84,6 +84,7 @@ const login = async (req, res) => {
 
   return res.status(200).json({
     success: true,
+    code: 200,
     data: {
       accessToken,
       user: {
@@ -103,7 +104,7 @@ const logout = (req, res) => {
     secure: env.NODE_ENV === 'production',
   });
 
-  return res.status(200).json({ success: true, data: {} });
+  return res.status(200).json({ success: true, code: 200, data: {} });
 };
 
 module.exports = {

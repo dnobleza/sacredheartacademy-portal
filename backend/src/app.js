@@ -21,7 +21,7 @@ app.use(
     crossOriginResourcePolicy: { policy: 'same-site' },
     frameguard: { action: 'deny' },
     noSniff: true,
-  })
+  }),
 );
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
@@ -38,7 +38,7 @@ app.use(
       return callback(new Error(`Origin not allowed by CORS: ${origin}`));
     },
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json({ limit: '1mb' }));
@@ -49,18 +49,28 @@ app.use(generalLimiter);
 app.use(
   morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
     stream: logger.stream,
-  })
+  }),
 );
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
+  res.json({
+    status: 'ok',
+    message: 'portal is in good condition',
+    uptime: process.uptime(),
+  });
 });
 
 app.use('/api/auth', require('./routes/shared/auth-routes'));
 app.use('/api/admin/teachers', require('./routes/admin/teachers-routes'));
 
 app.use((req, res) => {
-  res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
+  res
+    .status(404)
+    .json({
+      success: false,
+      code: 404,
+      message: `Route not found: ${req.method} ${req.originalUrl}`,
+    });
 });
 
 app.use((err, req, res, next) => {
@@ -74,6 +84,8 @@ app.use((err, req, res, next) => {
   });
 
   res.status(statusCode).json({
+    success: false,
+    code: statusCode,
     message: statusCode === 500 ? 'Internal server error' : err.message,
   });
 });

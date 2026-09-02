@@ -6,12 +6,12 @@ const authenticateToken = (req, res, next) => {
   const [scheme, token] = authHeader.split(' ');
 
   if (scheme !== 'Bearer' || !token) {
-    return res.status(401).json({ success: false, message: 'Authentication token is required.' });
+    return res.status(401).json({ success: false, code: 401, message: 'Authentication token is required.' });
   }
 
   return jwt.verify(token, env.JWT_SECRET, (error, decoded) => {
     if (error) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+      return res.status(401).json({ success: false, code: 401, message: 'Invalid or expired token.' });
     }
 
     req.user = decoded;
