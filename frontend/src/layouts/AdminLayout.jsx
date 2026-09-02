@@ -24,6 +24,8 @@ import {
   LogOut,
   Menu as MenuIcon,
   Presentation,
+  ShieldCheck,
+  UserCircle,
   Users,
   UsersRound,
 } from 'lucide-react';
@@ -34,7 +36,15 @@ import { roleLabel } from '../utils/roles';
 import { glass, AQUA } from '../theme';
 import { school } from '../data/landing';
 
-const ICONS = { LayoutDashboard, GraduationCap, Presentation, Users, UsersRound };
+const ICONS = {
+  LayoutDashboard,
+  GraduationCap,
+  Presentation,
+  ShieldCheck,
+  UserCircle,
+  Users,
+  UsersRound,
+};
 
 const EXPANDED_WIDTH = 248;
 const COLLAPSED_WIDTH = 76;
@@ -224,7 +234,7 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
                 </Box>
                 {!collapsed && (
                   <>
-                    <Box component="span" sx={{ flexGrow: 1 }}>
+                    <Box component="span" sx={{ flexGrow: 1, whiteSpace: 'nowrap' }}>
                       {item.label}
                     </Box>
                     <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>

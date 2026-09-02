@@ -25,7 +25,7 @@ const nameColumn = {
   value: (row) => [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' '),
 };
 
-const contactColumn = { field: 'contact_number', label: 'Contact', minWidth: 140 };
+const contactColumn = { field: 'contact_number', label: 'Mobile number', minWidth: 140 };
 const emailColumn = { field: 'email', label: 'Email', minWidth: 220 };
 const statusColumn = { field: 'status', label: 'Status', type: 'status', minWidth: 110 };
 
@@ -34,7 +34,7 @@ const personFields = [
   { name: 'middle_name', label: 'Middle name', maxLength: 100 },
   { name: 'last_name', label: 'Last name', required: true, maxLength: 100 },
   { name: 'gender', label: 'Gender', type: 'select', options: GENDER_OPTIONS },
-  { name: 'contact_number', label: 'Contact number', maxLength: 20 },
+  { name: 'contact_number', label: 'Mobile number', maxLength: 20 },
   { name: 'address', label: 'Address', multiline: true, maxLength: 255 },
 ];
 
@@ -98,6 +98,26 @@ export const ADMIN_RESOURCES = {
     ],
   },
 
+  admins: {
+    key: 'admins',
+    label: 'Admins',
+    singular: 'Admin',
+    icon: 'ShieldCheck',
+    columns: [
+      nameColumn,
+      { field: 'employee_number', label: 'Employee no.', minWidth: 140 },
+      emailColumn,
+      contactColumn,
+      statusColumn,
+    ],
+    fields: [
+      emailField,
+      { name: 'employee_number', label: 'Employee number', required: true, maxLength: 50 },
+      ...personFields,
+      statusField,
+    ],
+  },
+
   parents: {
     key: 'parents',
     label: 'Parents',
@@ -110,14 +130,16 @@ export const ADMIN_RESOURCES = {
 
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: 'LayoutDashboard', end: true },
+  { to: '/admin/profile', label: 'Profile', icon: 'UserCircle' },
   {
     key: 'manage-users',
-    label: 'Manage users',
+    label: 'Users Management',
     icon: 'UsersRound',
     children: [
       { to: '/admin/students', label: 'Students', icon: 'GraduationCap' },
       { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
       { to: '/admin/parents', label: 'Parents', icon: 'Users' },
+      { to: '/admin/admins', label: 'Admins', icon: 'ShieldCheck' },
     ],
   },
 ];

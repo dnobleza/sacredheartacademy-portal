@@ -5,9 +5,11 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import Overview from './pages/admin/Overview';
+import Profile from './pages/admin/Profile';
 import StudentsPage from './pages/admin/StudentsPage';
 import TeachersPage from './pages/admin/TeachersPage';
 import ParentsPage from './pages/admin/ParentsPage';
+import AdminsPage from './pages/admin/AdminsPage';
 import TeacherDashboard from './pages/dashboard/TeacherDashboard';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
@@ -21,9 +23,11 @@ function App() {
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Overview />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="parents" element={<ParentsPage />} />
+          <Route path="admins" element={<AdminsPage />} />
         </Route>
       </Route>
 
