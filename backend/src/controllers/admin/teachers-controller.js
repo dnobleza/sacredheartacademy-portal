@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const pool = require('../../config/database');
 const logger = require('../../utils/logger');
+const HTTP_STATUS = require('../../utils/http-status');
+const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
 const {
   validateCreateTeacher,
   validateUpdateTeacher,
@@ -38,9 +40,7 @@ const createTeacher = async (req, res) => {
   const validationErrors = validateCreateTeacher(req.body);
 
   if (validationErrors.length > 0) {
-    return res
-      .status(400)
-      .json({ success: false, code: 400, message: validationErrors.join(' ') });
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
   }
 
   const email = req.body.email.trim().toLowerCase();
@@ -61,10 +61,12 @@ const createTeacher = async (req, res) => {
   await connection.beginTransaction();
 
   const teacher = await connection
-    .execute(
-      'INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)',
-      [TEACHER_ROLE_ID, email, passwordHash, 'active'],
-    )
+    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
+      TEACHER_ROLE_ID,
+      email,
+      passwordHash,
+      'active',
+    ])
     .then(([userResult]) =>
       connection
         .execute(
@@ -91,36 +93,26 @@ const createTeacher = async (req, res) => {
     .catch((error) => connection.rollback().then(() => Promise.reject(error)))
     .finally(() => connection.release());
 
-  return res.status(201).json({
-    success: true,
-    code: 201,
-    data: {
-      id: teacher.teacherId,
-      user_id: teacher.userId,
-      email,
-      employee_number: employeeNumber,
-      first_name: firstName,
-      last_name: lastName,
-      middle_name: middleName,
-      gender,
-      address,
-      contact_number: contactNumber,
-      status: 'active',
-      temporary_password: temporaryPassword,
-    },
+  return sendCreated(res, {
+    id: teacher.teacherId,
+    user_id: teacher.userId,
+    email,
+    employee_number: employeeNumber,
+    first_name: firstName,
+    last_name: lastName,
+    middle_name: middleName,
+    gender,
+    address,
+    contact_number: contactNumber,
+    status: 'active',
+    temporary_password: temporaryPassword,
   });
 };
 
 const createTeacherHandler = (req, res, next) =>
   createTeacher(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          code: 409,
-          message: 'Email or employee number is already in use.',
-        });
+      return sendError(res, HTTP_STATUS.CONFLICT, 'Email or employee number is already in use.');
     }
     return next(error);
   });
@@ -149,17 +141,13 @@ const listTeachers = async (req, res) => {
     [...searchParams, limit, offset],
   );
 
-  return res.status(200).json({
-    success: true,
-    code: 200,
-    data: {
-      teachers: rows,
-      pagination: {
-        page,
-        limit,
-        total: countRows[0].total,
-        totalPages: Math.ceil(countRows[0].total / limit),
-      },
+  return sendOk(res, {
+    teachers: rows,
+    pagination: {
+      page,
+      limit,
+      total: countRows[0].total,
+      totalPages: Math.ceil(countRows[0].total / limit),
     },
   });
 };
@@ -176,12 +164,10 @@ const getTeacherById = async (req, res) => {
   );
 
   if (rows.length === 0) {
-    return res
-      .status(404)
-      .json({ success: false, code: 404, message: 'Teacher not found.' });
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Teacher not found.');
   }
 
-  return res.status(200).json({ success: true, code: 200, data: rows[0] });
+  return sendOk(res, rows[0]);
 };
 
 const USER_UPDATE_FIELDS = ['email', 'status'];
@@ -236,22 +222,17 @@ const updateTeacher = async (req, res) => {
   const validationErrors = validateUpdateTeacher(req.body);
 
   if (validationErrors.length > 0) {
-    return res
-      .status(400)
-      .json({ success: false, code: 400, message: validationErrors.join(' ') });
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
   }
 
   const teacherId = req.params.id;
 
-  const [existing] = await pool.execute(
-    'SELECT id, user_id FROM teachers WHERE id = ?',
-    [teacherId],
-  );
+  const [existing] = await pool.execute('SELECT id, user_id FROM teachers WHERE id = ?', [
+    teacherId,
+  ]);
 
   if (existing.length === 0) {
-    return res
-      .status(404)
-      .json({ success: false, code: 404, message: 'Teacher not found.' });
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Teacher not found.');
   }
 
   const { user_id: userId } = existing[0];
@@ -264,18 +245,18 @@ const updateTeacher = async (req, res) => {
   await Promise.resolve()
     .then(() =>
       userUpdate.clause
-        ? connection.execute(
-            `UPDATE users SET ${userUpdate.clause} WHERE id = ?`,
-            [...userUpdate.values, userId],
-          )
+        ? connection.execute(`UPDATE users SET ${userUpdate.clause} WHERE id = ?`, [
+            ...userUpdate.values,
+            userId,
+          ])
         : null,
     )
     .then(() =>
       teacherUpdate.clause
-        ? connection.execute(
-            `UPDATE teachers SET ${teacherUpdate.clause} WHERE id = ?`,
-            [...teacherUpdate.values, teacherId],
-          )
+        ? connection.execute(`UPDATE teachers SET ${teacherUpdate.clause} WHERE id = ?`, [
+            ...teacherUpdate.values,
+            teacherId,
+          ])
         : null,
     )
     .then(() => connection.commit())
@@ -292,18 +273,15 @@ const updateTeacher = async (req, res) => {
 
   logger.info(`Teacher ${teacherId} updated by admin ${req.user.id}`);
 
-  return res.status(200).json({ success: true, code: 200, data: rows[0] });
+  return sendOk(res, rows[0]);
 };
 
 const updateTeacherHandler = (req, res, next) =>
   updateTeacher(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        success: false,
-        code: 409,
-        message: 'Email or employee number is already in use.',
-      });
+      return sendError(res, HTTP_STATUS.CONFLICT, 'Email or employee number is already in use.');
     }
+    console.log('================', res.status);
     return next(error);
   });
 

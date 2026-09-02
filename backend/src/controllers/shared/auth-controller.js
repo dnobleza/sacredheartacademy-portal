@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/database');
 const logger = require('../../utils/logger');
+const HTTP_STATUS = require('../../utils/http-status');
+const { sendError, sendOk } = require('../../utils/send-response');
 const env = require('../../config/env');
 const { validateLogin } = require('../../validations/auth-validation');
 
@@ -33,7 +35,7 @@ const login = async (req, res) => {
   const validationErrors = validateLogin(req.body);
 
   if (validationErrors.length > 0) {
-    return res.status(400).json({ success: false, code: 400, message: validationErrors.join(' ') });
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
   }
 
   const email = req.body.email.trim().toLowerCase();
@@ -44,14 +46,17 @@ const login = async (req, res) => {
      FROM users
      JOIN roles ON roles.id = users.role_id
      WHERE users.email = ?`,
-    [email]
+    [email],
   );
 
   const user = users[0];
   const genericFailureResponse = () =>
-    res.status(401).json({ success: false, code: 401, message: 'Invalid email or password.' });
+    sendError(res, HTTP_STATUS.UNAUTHORIZED, 'Invalid email or password.');
 
-  const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user ? user.password_hash : DUMMY_PASSWORD_HASH,
+  );
 
   if (!user || !passwordMatches) {
     logger.warn(`Failed login attempt for ${email} from ${req.ip}`);
@@ -59,7 +64,7 @@ const login = async (req, res) => {
   }
 
   if (user.status !== 'active') {
-    return res.status(401).json({ success: false, code: 401, message: 'This account is not active.' });
+    return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'This account is not active.');
   }
 
   const profile = await findProfileByUserId(user.role, user.id);
@@ -70,8 +75,12 @@ const login = async (req, res) => {
     profileId: profile ? profile.id : null,
   };
 
-  const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
-  const refreshToken = jwt.sign(tokenPayload, env.JWT_REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
+  const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+  });
+  const refreshToken = jwt.sign(tokenPayload, env.JWT_REFRESH_SECRET, {
+    expiresIn: REFRESH_TOKEN_EXPIRY,
+  });
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
@@ -82,18 +91,14 @@ const login = async (req, res) => {
 
   const { password_hash: passwordHash, ...safeProfile } = profile || {};
 
-  return res.status(200).json({
-    success: true,
-    code: 200,
-    data: {
-      accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      profile: safeProfile,
+  return sendOk(res, {
+    accessToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
     },
+    profile: safeProfile,
   });
 };
 
@@ -104,7 +109,7 @@ const logout = (req, res) => {
     secure: env.NODE_ENV === 'production',
   });
 
-  return res.status(200).json({ success: true, code: 200, data: {} });
+  return sendOk(res, {});
 };
 
 module.exports = {

@@ -10,13 +10,13 @@ const consoleFormat = winston.format.combine(
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     const details = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
     return `${timestamp} [${level}] ${stack || message}${details}`;
-  })
+  }),
 );
 
 const fileFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
-  winston.format.json()
+  winston.format.json(),
 );
 
 const logger = winston.createLogger({
@@ -42,9 +42,7 @@ const logger = winston.createLogger({
 });
 
 logger.stream = {
-  write: (message) => logger.http
-    ? logger.http(message.trim())
-    : logger.info(message.trim()),
+  write: (message) => (logger.http ? logger.http(message.trim()) : logger.info(message.trim())),
 };
 
 module.exports = logger;

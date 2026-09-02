@@ -1,17 +1,19 @@
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
+const HTTP_STATUS = require('../utils/http-status');
+const { sendError } = require('../utils/send-response');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   const [scheme, token] = authHeader.split(' ');
 
   if (scheme !== 'Bearer' || !token) {
-    return res.status(401).json({ success: false, code: 401, message: 'Authentication token is required.' });
+    return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'Authentication token is required.');
   }
 
   return jwt.verify(token, env.JWT_SECRET, (error, decoded) => {
     if (error) {
-      return res.status(401).json({ success: false, code: 401, message: 'Invalid or expired token.' });
+      return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'Invalid or expired token.');
     }
 
     req.user = decoded;

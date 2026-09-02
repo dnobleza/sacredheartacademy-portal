@@ -1,13 +1,18 @@
-const authorizeRoles = (...roleNames) => (req, res, next) => {
-  if (!req.user || !roleNames.includes(req.user.role)) {
-    return res.status(403).json({
-      success: false,
-      code: 403,
-      message: 'You do not have permission to access this resource.',
-    });
-  }
+const HTTP_STATUS = require('../utils/http-status');
+const { sendError } = require('../utils/send-response');
 
-  return next();
-};
+const authorizeRoles =
+  (...roleNames) =>
+  (req, res, next) => {
+    if (!req.user || !roleNames.includes(req.user.role)) {
+      return sendError(
+        res,
+        HTTP_STATUS.FORBIDDEN,
+        'You do not have permission to access this resource.',
+      );
+    }
+
+    return next();
+  };
 
 module.exports = authorizeRoles;

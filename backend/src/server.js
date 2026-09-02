@@ -9,7 +9,9 @@ const PORT = process.env.PORT || 5000;
 let server;
 
 const exitOnDatabaseError = (error) => {
-  logger.error(`Database connection failed: ${error.message}`, { stack: error.stack });
+  logger.error(`Database connection failed: ${error.message}`, {
+    stack: error.stack,
+  });
   process.exit(1);
 };
 

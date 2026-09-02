@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
+const HTTP_STATUS = require('./utils/http-status');
+const { sendError } = require('./utils/send-response');
 const { generalLimiter } = require('./middleware/rate-limiters');
 
 const app = express();
@@ -64,17 +66,11 @@ app.use('/api/auth', require('./routes/shared/auth-routes'));
 app.use('/api/admin/teachers', require('./routes/admin/teachers-routes'));
 
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({
-      success: false,
-      code: 404,
-      message: `Route not found: ${req.method} ${req.originalUrl}`,
-    });
+  sendError(res, HTTP_STATUS.NOT_FOUND, `Route not found: ${req.method} ${req.originalUrl}`);
 });
 
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
   logger.error(err.message, {
     method: req.method,
@@ -83,11 +79,11 @@ app.use((err, req, res, next) => {
     stack: err.stack,
   });
 
-  res.status(statusCode).json({
-    success: false,
-    code: statusCode,
-    message: statusCode === 500 ? 'Internal server error' : err.message,
-  });
+  sendError(
+    res,
+    statusCode,
+    statusCode === HTTP_STATUS.INTERNAL_SERVER_ERROR ? 'Internal server error' : err.message,
+  );
 });
 
 module.exports = app;

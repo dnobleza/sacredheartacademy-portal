@@ -1,11 +1,13 @@
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const logger = require('../utils/logger');
+const HTTP_STATUS = require('../utils/http-status');
+const { sendError } = require('../utils/send-response');
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 const buildHandler = (message) => (req, res) => {
   logger.warn(`Rate limit reached: ${req.method} ${req.originalUrl} from ${req.ip}`);
-  return res.status(429).json({ success: false, code: 429, message });
+  return sendError(res, HTTP_STATUS.TOO_MANY_REQUESTS, message);
 };
 
 const generalLimiter = rateLimit({

@@ -3,7 +3,8 @@ const GENDER_VALUES = ['male', 'female', 'other'];
 const STATUS_VALUES = ['active', 'inactive', 'suspended'];
 const PHONE_REGEX = /^(?:\+63|0)9\d{9}$/;
 
-const normalizePhone = (value) => (typeof value === 'string' ? value.replace(/[\s()-]/g, '') : value);
+const normalizePhone = (value) =>
+  typeof value === 'string' ? value.replace(/[\s()-]/g, '') : value;
 
 const isProvided = (value) => value !== undefined && value !== null && value !== '';
 
@@ -11,7 +12,9 @@ const validatePhone = (contactNumber, errors) => {
   const normalized = normalizePhone(contactNumber);
 
   if (typeof normalized !== 'string' || !PHONE_REGEX.test(normalized)) {
-    errors.push('Contact number must be a Philippine mobile number, for example 09171234567 or +639171234567.');
+    errors.push(
+      'Contact number must be a Philippine mobile number, for example 09171234567 or +639171234567.',
+    );
   }
 };
 
@@ -92,7 +95,9 @@ const UPDATABLE_FIELDS = [
 const validateUpdateTeacher = (payload) => {
   const errors = [];
   const body = payload || {};
-  const provided = UPDATABLE_FIELDS.filter((field) => Object.prototype.hasOwnProperty.call(body, field));
+  const provided = UPDATABLE_FIELDS.filter((field) =>
+    Object.prototype.hasOwnProperty.call(body, field),
+  );
 
   if (provided.length === 0) {
     errors.push(`At least one field is required: ${UPDATABLE_FIELDS.join(', ')}.`);
@@ -100,7 +105,11 @@ const validateUpdateTeacher = (payload) => {
   }
 
   if (provided.includes('email')) {
-    if (!isProvided(body.email) || typeof body.email !== 'string' || !EMAIL_REGEX.test(body.email.trim())) {
+    if (
+      !isProvided(body.email) ||
+      typeof body.email !== 'string' ||
+      !EMAIL_REGEX.test(body.email.trim())
+    ) {
       errors.push('A valid email is required.');
     } else if (body.email.trim().length > 255) {
       errors.push('Email must be 255 characters or fewer.');
@@ -114,7 +123,11 @@ const validateUpdateTeacher = (payload) => {
   if (provided.includes('employee_number')) {
     const employeeNumber = body.employee_number;
 
-    if (!isProvided(employeeNumber) || typeof employeeNumber !== 'string' || !employeeNumber.trim()) {
+    if (
+      !isProvided(employeeNumber) ||
+      typeof employeeNumber !== 'string' ||
+      !employeeNumber.trim()
+    ) {
       errors.push('Employee number cannot be empty.');
     } else if (employeeNumber.trim().length > 50) {
       errors.push('Employee number must be 50 characters or fewer.');
@@ -142,7 +155,11 @@ const validateUpdateTeacher = (payload) => {
     }
   }
 
-  if (provided.includes('gender') && isProvided(body.gender) && !GENDER_VALUES.includes(body.gender)) {
+  if (
+    provided.includes('gender') &&
+    isProvided(body.gender) &&
+    !GENDER_VALUES.includes(body.gender)
+  ) {
     errors.push(`Gender must be one of: ${GENDER_VALUES.join(', ')}.`);
   }
 
