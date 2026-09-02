@@ -1,0 +1,123 @@
+/**
+ * Declarative description of each admin resource: what the table shows and
+ * what the form asks for. The columns and fields mirror the SELECT lists and
+ * validators in backend/src/controllers/admin/*-controller.js — keep them in
+ * step if the backend changes.
+ */
+
+const GENDER_OPTIONS = [
+  { value: '', label: 'Not specified' },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'suspended', label: 'Suspended' },
+];
+
+const nameColumn = {
+  field: 'name',
+  label: 'Name',
+  minWidth: 190,
+  value: (row) => [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' '),
+};
+
+const contactColumn = { field: 'contact_number', label: 'Contact', minWidth: 140 };
+const emailColumn = { field: 'email', label: 'Email', minWidth: 220 };
+const statusColumn = { field: 'status', label: 'Status', type: 'status', minWidth: 110 };
+
+const personFields = [
+  { name: 'first_name', label: 'First name', required: true, maxLength: 100 },
+  { name: 'middle_name', label: 'Middle name', maxLength: 100 },
+  { name: 'last_name', label: 'Last name', required: true, maxLength: 100 },
+  { name: 'gender', label: 'Gender', type: 'select', options: GENDER_OPTIONS },
+  { name: 'contact_number', label: 'Contact number', maxLength: 20 },
+  { name: 'address', label: 'Address', multiline: true, maxLength: 255 },
+];
+
+const emailField = {
+  name: 'email',
+  label: 'Email',
+  type: 'email',
+  required: true,
+  maxLength: 255,
+  // The backend only accepts email changes through the users table on update,
+  // which it supports — so this stays editable.
+};
+
+const statusField = {
+  name: 'status',
+  label: 'Status',
+  type: 'select',
+  options: STATUS_OPTIONS,
+  editOnly: true,
+};
+
+export const ADMIN_RESOURCES = {
+  students: {
+    key: 'students',
+    label: 'Students',
+    singular: 'Student',
+    icon: 'GraduationCap',
+    columns: [
+      nameColumn,
+      emailColumn,
+      { field: 'birth_date', label: 'Birth date', type: 'date', minWidth: 130 },
+      contactColumn,
+      statusColumn,
+    ],
+    fields: [
+      emailField,
+      ...personFields.slice(0, 3),
+      { name: 'birth_date', label: 'Birth date', type: 'date' },
+      ...personFields.slice(3),
+      statusField,
+    ],
+  },
+
+  teachers: {
+    key: 'teachers',
+    label: 'Teachers',
+    singular: 'Teacher',
+    icon: 'Presentation',
+    columns: [
+      nameColumn,
+      { field: 'employee_number', label: 'Employee no.', minWidth: 140 },
+      emailColumn,
+      contactColumn,
+      statusColumn,
+    ],
+    fields: [
+      emailField,
+      { name: 'employee_number', label: 'Employee number', required: true, maxLength: 50 },
+      ...personFields,
+      statusField,
+    ],
+  },
+
+  parents: {
+    key: 'parents',
+    label: 'Parents',
+    singular: 'Parent',
+    icon: 'Users',
+    columns: [nameColumn, emailColumn, contactColumn, statusColumn],
+    fields: [emailField, ...personFields, statusField],
+  },
+};
+
+export const ADMIN_NAV = [
+  { to: '/admin', label: 'Overview', icon: 'LayoutDashboard', end: true },
+  {
+    key: 'manage-users',
+    label: 'Manage users',
+    icon: 'UsersRound',
+    children: [
+      { to: '/admin/students', label: 'Students', icon: 'GraduationCap' },
+      { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
+      { to: '/admin/parents', label: 'Parents', icon: 'Users' },
+    ],
+  },
+];
