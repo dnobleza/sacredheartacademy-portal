@@ -54,7 +54,7 @@ app.use(
   }),
 );
 
-app.get('/api/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'portal is in good condition',
@@ -62,8 +62,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use('/api/auth', require('./routes/shared/auth-routes'));
-app.use('/api/admin/teachers', require('./routes/admin/teachers-routes'));
+app.use('/api/v1/auth', require('./routes/shared/auth-routes'));
+app.use('/api/v1/admin/teachers', require('./routes/admin/teachers-routes'));
+app.use('/api/v1/admin/students', require('./routes/admin/students-routes'));
 
 app.use((req, res) => {
   sendError(res, HTTP_STATUS.NOT_FOUND, `Route not found: ${req.method} ${req.originalUrl}`);
