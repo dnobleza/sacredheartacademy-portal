@@ -14,3 +14,5 @@ On 2026-09-02 two tables missing from the original schema were added via `backen
 **Why:** Parents previously had zero relationship to students, so no parent feature could work; admins could authenticate but had no profile row.
 
 **How to apply:** Migrations live in `backend/database/migrations/`, numbered, applied manually — there is no migration runner or tracking table. Check `information_schema` before assuming a table's shape. See [[school-management-stack]].
+
+Migration 002 (2026-09-02) restructured `students`: dropped `student_number`, renamed `date_of_birth` to `birth_date`, added `address`, `contact_number`, `updated_at`. Students are now identified by `users.email` alone. CLAUDE.md sections 8, 11 and 28 still reference `student_number` and contradict the live schema.
