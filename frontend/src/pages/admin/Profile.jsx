@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -5,14 +6,29 @@ import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid2';
 import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Pencil } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../utils/roles';
 import { AQUA_GRADIENT } from '../../theme';
+import ResourceFormDialog from '../../components/admin/ResourceFormDialog';
+import { updateResource } from '../../services/adminApi';
+import { extractErrorMessage } from '../../services/api';
+import { ADMIN_RESOURCES } from '../../data/adminResources';
 
 const DASH = '—';
+
+// A self-edit form for the signed-in admin's own record. Reuses the same
+// field config as the Admins resource, minus `status` — an admin must never
+// be able to set their own account inactive/suspended and lock themselves
+// out on the next token refresh.
+const PROFILE_RESOURCE = {
+  ...ADMIN_RESOURCES.admins,
+  singular: 'profile',
+  fields: ADMIN_RESOURCES.admins.fields.filter((field) => field.name !== 'status'),
+};
 
 const displayValue = (value) => {
   if (value === null || value === undefined || value === '') return DASH;
@@ -34,7 +50,11 @@ function DetailRow({ label, value }) {
 }
 
 function Profile() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [toast, setToast] = useState('');
 
   const fullName = [profile?.first_name, profile?.middle_name, profile?.last_name]
     .filter(Boolean)
@@ -46,6 +66,24 @@ function Profile() {
     { label: 'Gender', value: profile?.gender },
     { label: 'Address', value: profile?.address },
   ];
+
+  const openEdit = () => {
+    setFormError('');
+    setFormOpen(true);
+  };
+
+  const handleSubmit = async (payload) => {
+    setFormError('');
+
+    try {
+      await updateResource('admins', profile.id, payload);
+      await refreshProfile();
+      setFormOpen(false);
+      setToast('Profile updated.');
+    } catch (error) {
+      setFormError(extractErrorMessage(error, 'Could not save your profile. Please try again.'));
+    }
+  };
 
   return (
     <Box>
@@ -103,12 +141,13 @@ function Profile() {
             </Typography>
 
             <Button
-              disabled
+              onClick={openEdit}
+              disabled={!profile}
               startIcon={<Pencil size={16} />}
               sx={{ mt: 3, borderRadius: 3, textTransform: 'none', fontWeight: 700 }}
               variant="outlined"
             >
-              Edit profile (coming soon)
+              Edit profile
             </Button>
           </Paper>
         </Grid>
@@ -135,6 +174,26 @@ function Profile() {
           </Paper>
         </Grid>
       </Grid>
+
+      <ResourceFormDialog
+        open={formOpen}
+        resource={PROFILE_RESOURCE}
+        // Email lives on the user row, not the admins profile row, so it has
+        // to be merged in — otherwise the required field opens blank and
+        // blocks saving until the admin retypes their own address.
+        record={profile ? { ...profile, email: user?.email || '' } : null}
+        submitError={formError}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+
+      <Snackbar
+        open={Boolean(toast)}
+        autoHideDuration={4000}
+        onClose={() => setToast('')}
+        message={toast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }

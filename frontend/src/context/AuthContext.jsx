@@ -63,6 +63,17 @@ export function AuthProvider({ children }) {
     [applySession],
   );
 
+  // Refetches the signed-in user/profile from the server so screens that
+  // read from context (e.g. the top bar, Profile page) reflect a change
+  // just made through an API call, without requiring a full reload.
+  const refreshProfile = useCallback(async () => {
+    const response = await api.get('/auth/me');
+    const data = response.data.data;
+    setUser(data.user);
+    setProfile(data.profile || null);
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
@@ -80,8 +91,9 @@ export function AuthProvider({ children }) {
       isAuthenticated: status === 'authenticated',
       login,
       logout,
+      refreshProfile,
     }),
-    [status, user, profile, login, logout],
+    [status, user, profile, login, logout, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
