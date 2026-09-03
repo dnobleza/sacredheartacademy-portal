@@ -16,6 +16,9 @@ INSERT INTO `roles` VALUES (1,'admin','System administrator','2026-09-02 01:14:0
 INSERT INTO `roles` VALUES (2,'teacher','Teacher account','2026-09-02 01:14:06');
 INSERT INTO `roles` VALUES (3,'student','Student account','2026-09-02 01:14:06');
 INSERT INTO `roles` VALUES (4,'parent','Parent account','2026-09-02 01:14:06');
+INSERT INTO `roles` VALUES (5,'librarian','Librarian account','2026-09-03 00:00:00');
+INSERT INTO `roles` VALUES (6,'laboratory_staff','Laboratory staff account','2026-09-03 00:00:00');
+INSERT INTO `roles` VALUES (7,'registrar','Registrar account','2026-09-03 00:00:00');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

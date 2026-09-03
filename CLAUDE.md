@@ -131,7 +131,7 @@ Do not reorganize the project structure unnecessarily.
 
 # 4. User Roles
 
-The system has exactly four primary roles:
+The system has four primary roles:
 
 ```text
 admin
@@ -139,6 +139,19 @@ teacher
 student
 parent
 ```
+
+It also has three staff roles:
+
+```text
+librarian
+laboratory_staff
+registrar
+```
+
+Staff roles authenticate through the same `users` table as every other role.
+They have no role-specific profile table yet, so `findProfileByUserId` in
+`controllers/shared/auth-controller.js` returns `null` for them. That is
+expected. Add a profile table only when a staff role needs profile data.
 
 Roles must be stored in the database and must not be hardcoded throughout the application.
 
