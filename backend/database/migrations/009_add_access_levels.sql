@@ -37,9 +37,24 @@ INSERT INTO access_levels (role_id, code, level, name, description) VALUES
 
 ALTER TABLE users ADD COLUMN access_level_id int NULL AFTER role_id;
 
--- Backfill from the role each user already has. Existing admins become Super
--- Admin: the only admin on record is the account the school signs in with, and
--- a lower tier would lock it out once level guards land.
+-- Accounts created on a migration 008 staff role move to the admin role at the
+-- equivalent level, which is what those roles meant all along. This has to run
+-- before the general backfill: there is no access level under roles 5-7, so
+-- such a user would otherwise be left NULL and fail the NOT NULL change below.
+UPDATE users
+  JOIN roles ON roles.id = users.role_id
+  JOIN access_levels ON access_levels.name = CASE roles.name
+         WHEN 'librarian' THEN 'Librarian'
+         WHEN 'laboratory_staff' THEN 'Laboratory Staff'
+         WHEN 'registrar' THEN 'Registrar'
+       END
+   SET users.role_id = access_levels.role_id,
+       users.access_level_id = access_levels.id
+ WHERE roles.name IN ('librarian', 'laboratory_staff', 'registrar');
+
+-- Backfill everyone else from the role they already have. Existing admins
+-- become Super Admin: the only admin on record is the account the school signs
+-- in with, and a lower tier would lock it out once level guards land.
 UPDATE users
    SET access_level_id = (
      SELECT al.id
@@ -48,7 +63,8 @@ UPDATE users
       WHERE al.role_id = users.role_id
         AND (r.name <> 'admin' OR al.name = 'Super Admin')
       LIMIT 1
-   );
+   )
+ WHERE access_level_id IS NULL;
 
 ALTER TABLE users MODIFY COLUMN access_level_id int NOT NULL;
 
@@ -56,8 +72,8 @@ ALTER TABLE users
   ADD CONSTRAINT users_ibfk_2
   FOREIGN KEY (access_level_id, role_id) REFERENCES access_levels (id, role_id);
 
--- Reverts migration 008. The AND clause keeps this from orphaning users if a
--- staff-role account was created between the two migrations.
+-- Reverts migration 008. The staff roles are now unreferenced: any account on
+-- one was moved to the admin role above. The AND clause is belt and braces.
 DELETE FROM roles
  WHERE name IN ('librarian', 'laboratory_staff', 'registrar')
    AND id NOT IN (SELECT DISTINCT role_id FROM users);
