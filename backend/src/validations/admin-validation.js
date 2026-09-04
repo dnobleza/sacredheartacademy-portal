@@ -8,6 +8,16 @@ const normalizePhone = (value) =>
 
 const isProvided = (value) => value !== undefined && value !== null && value !== '';
 
+// Only checks the shape. Whether the id exists and belongs to the admin role
+// needs a database read, so the controller does that part.
+const validateAccessLevelId = (accessLevelId, errors) => {
+  const parsed = Number(accessLevelId);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    errors.push('Access level is required and must be a valid selection.');
+  }
+};
+
 const validatePhone = (contactNumber, errors) => {
   const normalized = normalizePhone(contactNumber);
 
@@ -29,6 +39,7 @@ const validateCreateAdmin = (payload) => {
     gender,
     address,
     contact_number: contactNumber,
+    access_level_id: accessLevelId,
   } = payload || {};
 
   if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
@@ -77,12 +88,15 @@ const validateCreateAdmin = (payload) => {
     validatePhone(contactNumber, errors);
   }
 
+  validateAccessLevelId(accessLevelId, errors);
+
   return errors;
 };
 
 const UPDATABLE_FIELDS = [
   'email',
   'status',
+  'access_level_id',
   'employee_number',
   'first_name',
   'last_name',
@@ -118,6 +132,10 @@ const validateUpdateAdmin = (payload) => {
 
   if (provided.includes('status') && !STATUS_VALUES.includes(body.status)) {
     errors.push(`Status must be one of: ${STATUS_VALUES.join(', ')}.`);
+  }
+
+  if (provided.includes('access_level_id')) {
+    validateAccessLevelId(body.access_level_id, errors);
   }
 
   if (provided.includes('employee_number')) {

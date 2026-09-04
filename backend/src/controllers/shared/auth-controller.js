@@ -32,11 +32,32 @@ const findProfileByUserId = async (roleName, userId) => {
   return rows[0] || null;
 };
 
+// Access level travels with the user on every lookup so login, refresh and
+// /auth/me return the same shape. The composite foreign key on users
+// guarantees the level belongs to the user's role, so this join can never
+// widen access on its own.
+const ACCESS_LEVEL_FIELDS = `
+  access_levels.id AS access_level_id,
+  access_levels.code AS access_level_code,
+  access_levels.level AS access_level,
+  access_levels.name AS access_level_name
+`;
+
+const ACCESS_LEVEL_JOIN = 'JOIN access_levels ON access_levels.id = users.access_level_id';
+
+const toAccessLevel = (row) => ({
+  id: row.access_level_id,
+  code: row.access_level_code,
+  level: row.access_level,
+  name: row.access_level_name,
+});
+
 const findActiveUserById = async (userId) => {
   const [rows] = await pool.execute(
-    `SELECT users.id, users.email, users.status, roles.name AS role
+    `SELECT users.id, users.email, users.status, roles.name AS role, ${ACCESS_LEVEL_FIELDS}
      FROM users
      JOIN roles ON roles.id = users.role_id
+     ${ACCESS_LEVEL_JOIN}
      WHERE users.id = ?`,
     [userId],
   );
@@ -125,6 +146,11 @@ const issueSession = async (res, user) => {
     userId: user.id,
     role: user.role,
     profileId: profile ? profile.id : null,
+    // The numeric tier only. Names are for display and come from /auth/me, so
+    // the token stays small. A future level guard must treat a missing claim
+    // as a denial: refresh tokens issued before access levels shipped carry
+    // none until they expire.
+    accessLevel: user.access_level,
   };
 
   const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, {
@@ -149,6 +175,7 @@ const issueSession = async (res, user) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      access_level: toAccessLevel(user),
     },
     profile: safeProfile,
   };
@@ -165,9 +192,11 @@ const login = async (req, res) => {
   const { password } = req.body;
 
   const [users] = await pool.execute(
-    `SELECT users.id, users.email, users.password_hash, users.status, roles.name AS role
+    `SELECT users.id, users.email, users.password_hash, users.status, roles.name AS role,
+            ${ACCESS_LEVEL_FIELDS}
      FROM users
      JOIN roles ON roles.id = users.role_id
+     ${ACCESS_LEVEL_JOIN}
      WHERE users.email = ?`,
     [email],
   );
@@ -253,6 +282,7 @@ const me = async (req, res) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      access_level: toAccessLevel(user),
     },
     profile: safeProfile,
   });

@@ -53,7 +53,23 @@ const validateValues = (fields, values) => {
   return errors;
 };
 
-function ResourceFormDialog({ open, resource, record, onClose, onSubmit, submitError }) {
+/**
+ * A field either carries a fixed `options` array or names an `optionsSource`
+ * the caller loaded from the API. Falling back to an empty list keeps the
+ * select rendering while the request is still in flight.
+ */
+const optionsFor = (field, optionSources) =>
+  field.options || optionSources[field.optionsSource] || [];
+
+function ResourceFormDialog({
+  open,
+  resource,
+  record,
+  onClose,
+  onSubmit,
+  submitError,
+  optionSources = {},
+}) {
   const isEdit = Boolean(record);
   const fields = resource.fields.filter((field) => (isEdit ? true : !field.editOnly));
 
@@ -143,7 +159,7 @@ function ResourceFormDialog({ open, resource, record, onClose, onSubmit, submitE
                   }
                 >
                   {field.type === 'select' &&
-                    field.options.map((option) => (
+                    optionsFor(field, optionSources).map((option) => (
                       <MenuItem key={option.value} value={option.value}>
                         {option.label}
                       </MenuItem>

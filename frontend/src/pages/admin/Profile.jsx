@@ -21,13 +21,18 @@ import { ADMIN_RESOURCES } from '../../data/adminResources';
 const DASH = '—';
 
 // A self-edit form for the signed-in admin's own record. Reuses the same
-// field config as the Admins resource, minus `status` — an admin must never
-// be able to set their own account inactive/suspended and lock themselves
-// out on the next token refresh.
+// field config as the Admins resource, minus `status` and `access_level_id` —
+// an admin must never be able to deactivate or demote their own account and
+// lock themselves out. The backend rejects both on its own; dropping the
+// fields here just keeps the form from offering something that will fail.
+const SELF_EDIT_EXCLUDED = ['status', 'access_level_id'];
+
 const PROFILE_RESOURCE = {
   ...ADMIN_RESOURCES.admins,
   singular: 'profile',
-  fields: ADMIN_RESOURCES.admins.fields.filter((field) => field.name !== 'status'),
+  fields: ADMIN_RESOURCES.admins.fields.filter(
+    (field) => !SELF_EDIT_EXCLUDED.includes(field.name),
+  ),
 };
 
 const displayValue = (value) => {
@@ -60,8 +65,14 @@ function Profile() {
     .filter(Boolean)
     .join(' ');
 
+  const accessLevel = user?.access_level;
+
   const details = [
     { label: 'Employee number', value: profile?.employee_number },
+    {
+      label: 'Access level',
+      value: accessLevel ? `${accessLevel.code} — ${accessLevel.name}` : null,
+    },
     { label: 'Mobile number', value: profile?.contact_number },
     { label: 'Gender', value: profile?.gender },
     { label: 'Address', value: profile?.address },

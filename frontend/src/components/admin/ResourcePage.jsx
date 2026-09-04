@@ -26,6 +26,7 @@ import TemporaryPasswordDialog from './TemporaryPasswordDialog';
 import {
   createResource,
   deleteResource,
+  fetchAccessLevels,
   listResource,
   updateResource,
 } from '../../services/adminApi';
@@ -91,6 +92,46 @@ function ResourcePage({ resource }) {
 
   const [createdAccount, setCreatedAccount] = useState(null);
   const [toast, setToast] = useState('');
+
+  const [optionSources, setOptionSources] = useState({});
+
+  // Only the Admins resource needs a loaded option list today, so the fetch is
+  // driven off the field config rather than the resource key.
+  const needsAccessLevels = resource.fields.some(
+    (field) => field.optionsSource === 'accessLevels',
+  );
+
+  useEffect(() => {
+    if (!needsAccessLevels) {
+      return;
+    }
+
+    let active = true;
+
+    fetchAccessLevels()
+      .then((levels) => {
+        if (!active) {
+          return;
+        }
+
+        setOptionSources({
+          // Numeric values, so an existing record's numeric access_level_id
+          // matches an option and the edit form opens on the right one.
+          accessLevels: levels.map((level) => ({
+            value: level.id,
+            label: `${level.code} — ${level.name}`,
+          })),
+        });
+      })
+      .catch(() => {
+        // A failed load leaves the select empty; the server still rejects a
+        // create without a valid level, so nothing slips through.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [needsAccessLevels]);
 
   // Debounced so typing does not fire a request per keystroke.
   useEffect(() => {
@@ -335,6 +376,7 @@ function ResourcePage({ resource }) {
         open={formOpen}
         resource={resource}
         record={editing}
+        optionSources={optionSources}
         submitError={formError}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}

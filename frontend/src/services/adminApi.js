@@ -45,6 +45,16 @@ export const deleteResource = async (resource, id) => {
 };
 
 /**
+ * Access levels for the admin role, for the picker on the Admins form. The
+ * server scopes the list to admin levels, so whatever comes back is safe to
+ * offer.
+ */
+export const fetchAccessLevels = async () => {
+  const response = await api.get('/admin/access-levels');
+  return response.data.data.access_levels || [];
+};
+
+/**
  * No stats endpoint exists, so totals come from each list endpoint's
  * pagination block with the smallest possible page.
  */

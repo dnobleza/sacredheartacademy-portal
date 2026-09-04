@@ -48,6 +48,23 @@ const emailField = {
   // which it supports — so this stays editable.
 };
 
+const accessLevelColumn = {
+  field: 'access_level_name',
+  label: 'Access level',
+  minWidth: 150,
+  value: (row) => (row.access_level_code ? `${row.access_level_code} ${row.access_level_name}` : ''),
+};
+
+// Options are not listed here: they come from GET /admin/access-levels so the
+// form always offers exactly the levels the database holds for the admin role.
+const accessLevelField = {
+  name: 'access_level_id',
+  label: 'Access level',
+  type: 'select',
+  required: true,
+  optionsSource: 'accessLevels',
+};
+
 const statusField = {
   name: 'status',
   label: 'Status',
@@ -107,12 +124,14 @@ export const ADMIN_RESOURCES = {
       nameColumn,
       { field: 'employee_number', label: 'Employee no.', minWidth: 140 },
       emailColumn,
+      accessLevelColumn,
       contactColumn,
       statusColumn,
     ],
     fields: [
       emailField,
       { name: 'employee_number', label: 'Employee number', required: true, maxLength: 50 },
+      accessLevelField,
       ...personFields,
       statusField,
     ],

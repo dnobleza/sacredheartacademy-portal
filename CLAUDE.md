@@ -140,18 +140,29 @@ student
 parent
 ```
 
-It also has three staff roles:
+Job titles are not roles. Librarian, laboratory staff and registrar are
+**access levels within the admin role**, stored in `access_levels`:
 
 ```text
-librarian
-laboratory_staff
-registrar
+Lvl-0  Student           student
+Lvl-0  Parent            parent
+Lvl-1  Teacher           teacher
+Lvl-2  Laboratory Staff  admin
+Lvl-3  Librarian         admin
+Lvl-3  Registrar         admin
+Lvl-4  Super Admin       admin
 ```
 
-Staff roles authenticate through the same `users` table as every other role.
-They have no role-specific profile table yet, so `findProfileByUserId` in
-`controllers/shared/auth-controller.js` returns `null` for them. That is
-expected. Add a profile table only when a staff role needs profile data.
+Every access level belongs to exactly one role, and `users` carries a
+composite foreign key on `(access_level_id, role_id)` so the database rejects
+a user whose level belongs to a different role. A teacher can never hold
+Super Admin.
+
+Authorization is still role-based: `authorizeRoles` matches on the role name.
+The level rides in the JWT as the `accessLevel` claim and in `/api/auth/me`,
+ready for a level guard later. Such a guard must treat a **missing** claim as
+a denial, not as level 0 — tokens issued before access levels shipped carry
+none.
 
 Roles must be stored in the database and must not be hardcoded throughout the application.
 

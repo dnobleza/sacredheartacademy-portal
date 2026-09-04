@@ -20,6 +20,24 @@ const generateTemporaryPassword = () => {
   return `${sanitized.slice(0, PASSWORD_LENGTH)}!A1`;
 };
 
+// Every query built on ADMIN_SELECT_FIELDS needs this join alongside the users
+// join, since the level lives on users.
+const ACCESS_LEVEL_JOIN = 'JOIN access_levels ON access_levels.id = users.access_level_id';
+
+/**
+ * Resolves an access level and confirms it belongs to the admin role. The
+ * composite foreign key on users would reject a mismatch anyway, but catching
+ * it here returns a 400 the form can show instead of a 500.
+ */
+const findAdminAccessLevel = async (accessLevelId) => {
+  const [rows] = await pool.execute(
+    'SELECT id FROM access_levels WHERE id = ? AND role_id = ?',
+    [accessLevelId, ADMIN_ROLE_ID],
+  );
+
+  return rows[0] || null;
+};
+
 const ADMIN_SELECT_FIELDS = `
   admins.id,
   admins.user_id,
@@ -33,7 +51,11 @@ const ADMIN_SELECT_FIELDS = `
   admins.created_at,
   admins.updated_at,
   users.email,
-  users.status
+  users.status,
+  users.access_level_id,
+  access_levels.code AS access_level_code,
+  access_levels.level AS access_level,
+  access_levels.name AS access_level_name
 `;
 
 const createAdmin = async (req, res) => {
@@ -54,6 +76,13 @@ const createAdmin = async (req, res) => {
     ? normalizePhone(req.body.contact_number).trim()
     : null;
 
+  const accessLevelId = Number(req.body.access_level_id);
+  const accessLevel = await findAdminAccessLevel(accessLevelId);
+
+  if (!accessLevel) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Access level is not valid for an admin.');
+  }
+
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
@@ -61,12 +90,11 @@ const createAdmin = async (req, res) => {
   await connection.beginTransaction();
 
   const admin = await connection
-    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
-      ADMIN_ROLE_ID,
-      email,
-      passwordHash,
-      'active',
-    ])
+    .execute(
+      `INSERT INTO users (role_id, access_level_id, email, password_hash, status)
+       VALUES (?, ?, ?, ?, ?)`,
+      [ADMIN_ROLE_ID, accessLevelId, email, passwordHash, 'active'],
+    )
     .then(([userResult]) =>
       connection
         .execute(
@@ -105,6 +133,7 @@ const createAdmin = async (req, res) => {
     address,
     contact_number: contactNumber,
     status: 'active',
+    access_level_id: accessLevelId,
     temporary_password: temporaryPassword,
   });
 };
@@ -142,6 +171,7 @@ const listAdmins = async (req, res) => {
     `SELECT ${ADMIN_SELECT_FIELDS}
      FROM admins
      JOIN users ON users.id = admins.user_id
+     ${ACCESS_LEVEL_JOIN}
      ${searchClause}
      ORDER BY admins.created_at DESC
      LIMIT ? OFFSET ?`,
@@ -166,6 +196,7 @@ const getAdminById = async (req, res) => {
     `SELECT ${ADMIN_SELECT_FIELDS}
      FROM admins
      JOIN users ON users.id = admins.user_id
+     ${ACCESS_LEVEL_JOIN}
      WHERE admins.id = ?`,
     [adminId],
   );
@@ -177,7 +208,7 @@ const getAdminById = async (req, res) => {
   return sendOk(res, rows[0]);
 };
 
-const USER_UPDATE_FIELDS = ['email', 'status'];
+const USER_UPDATE_FIELDS = ['email', 'status', 'access_level_id'];
 
 const ADMIN_UPDATE_FIELDS = [
   'employee_number',
@@ -243,6 +274,36 @@ const updateAdmin = async (req, res) => {
   }
 
   const { user_id: userId } = existing[0];
+
+  // Same reasoning as the self-deletion guard below: an admin setting their
+  // own account inactive or suspended locks themselves out on the next token
+  // refresh. The Profile page hides the field, but that is only the UI — the
+  // rule has to hold for direct API calls too.
+  if (
+    userId === req.user.userId &&
+    Object.prototype.hasOwnProperty.call(req.body, 'status') &&
+    req.body.status !== 'active'
+  ) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'You cannot deactivate your own account.');
+  }
+
+  // Same lockout reasoning: an admin demoting themselves loses whatever access
+  // the new tier does not carry, with no way back.
+  if (
+    userId === req.user.userId &&
+    Object.prototype.hasOwnProperty.call(req.body, 'access_level_id')
+  ) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'You cannot change your own access level.');
+  }
+
+  if (Object.prototype.hasOwnProperty.call(req.body, 'access_level_id')) {
+    const accessLevel = await findAdminAccessLevel(Number(req.body.access_level_id));
+
+    if (!accessLevel) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Access level is not valid for an admin.');
+    }
+  }
+
   const userUpdate = buildAssignments(req.body, USER_UPDATE_FIELDS);
   const adminUpdate = buildAssignments(req.body, ADMIN_UPDATE_FIELDS);
 
@@ -274,6 +335,7 @@ const updateAdmin = async (req, res) => {
     `SELECT ${ADMIN_SELECT_FIELDS}
      FROM admins
      JOIN users ON users.id = admins.user_id
+     ${ACCESS_LEVEL_JOIN}
      WHERE admins.id = ?`,
     [adminId],
   );
