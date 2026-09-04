@@ -68,11 +68,14 @@ CREATE TABLE `admins` (
   `last_name` varchar(100) NOT NULL,
   `middle_name` varchar(100) DEFAULT NULL,
   `contact_number` varchar(30) DEFAULT NULL,
+  `photo_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_admins_user` (`user_id`),
   UNIQUE KEY `uq_admins_employee_number` (`employee_number`),
-  CONSTRAINT `fk_admins_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  KEY `photo_id` (`photo_id`),
+  CONSTRAINT `fk_admins_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_admins_photo` FOREIGN KEY (`photo_id`) REFERENCES `images` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -83,11 +86,14 @@ CREATE TABLE `announcements` (
   `title` varchar(200) NOT NULL,
   `content` text NOT NULL,
   `target_role` enum('all','students','teachers','parents') DEFAULT 'all',
+  `image_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `created_by` (`created_by`),
-  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
+  KEY `image_id` (`image_id`),
+  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `announcements_ibfk_2` FOREIGN KEY (`image_id`) REFERENCES `images` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -187,6 +193,23 @@ CREATE TABLE `grades` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `images` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `filename` varchar(255) NOT NULL,
+  `original_name` varchar(255) NOT NULL,
+  `mime_type` varchar(100) NOT NULL,
+  `size_bytes` int NOT NULL,
+  `uploaded_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `filename` (`filename`),
+  KEY `uploaded_by` (`uploaded_by`),
+  CONSTRAINT `images_ibfk_1` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `messages` (
   `id` int NOT NULL AUTO_INCREMENT,
   `sender_id` int NOT NULL,
@@ -228,11 +251,14 @@ CREATE TABLE `parents` (
   `gender` enum('male','female','other') DEFAULT NULL,
   `address` text,
   `contact_number` varchar(30) DEFAULT NULL,
+  `photo_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
-  CONSTRAINT `parents_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `photo_id` (`photo_id`),
+  CONSTRAINT `parents_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_parents_photo` FOREIGN KEY (`photo_id`) REFERENCES `images` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -306,11 +332,14 @@ CREATE TABLE `students` (
   `gender` enum('male','female','other') DEFAULT NULL,
   `address` text,
   `contact_number` varchar(30) DEFAULT NULL,
+  `photo_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
-  CONSTRAINT `students_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `photo_id` (`photo_id`),
+  CONSTRAINT `students_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_students_photo` FOREIGN KEY (`photo_id`) REFERENCES `images` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -369,12 +398,15 @@ CREATE TABLE `teachers` (
   `gender` enum('male','female','other') DEFAULT NULL,
   `address` text,
   `contact_number` varchar(30) DEFAULT NULL,
+  `photo_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   UNIQUE KEY `employee_number` (`employee_number`),
-  CONSTRAINT `teachers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `photo_id` (`photo_id`),
+  CONSTRAINT `teachers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_teachers_photo` FOREIGN KEY (`photo_id`) REFERENCES `images` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
