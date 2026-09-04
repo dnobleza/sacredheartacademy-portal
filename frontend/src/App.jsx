@@ -16,6 +16,8 @@ import SectionsPage from './pages/admin/SectionsPage';
 import SubjectsPage from './pages/admin/SubjectsPage';
 import SchedulesPage from './pages/admin/SchedulesPage';
 import ClassesPage from './pages/admin/ClassesPage';
+import AnnouncementsPage from './pages/admin/AnnouncementsPage';
+import MessagesPage from './pages/admin/MessagesPage';
 import TeacherDashboard from './pages/dashboard/TeacherDashboard';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
@@ -40,6 +42,8 @@ function App() {
           <Route path="subjects" element={<SubjectsPage />} />
           <Route path="schedules" element={<SchedulesPage />} />
           <Route path="classes" element={<ClassesPage />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
+          <Route path="messages" element={<MessagesPage />} />
         </Route>
       </Route>
 
