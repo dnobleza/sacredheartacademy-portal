@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -11,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Pencil } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { fetchImageObjectUrl } from '../../services/imagesApi';
 import { roleLabel } from '../../utils/roles';
 import { AQUA_GRADIENT } from '../../theme';
 import ResourceFormDialog from '../../components/admin/ResourceFormDialog';
@@ -57,9 +58,50 @@ function DetailRow({ label, value }) {
 function Profile() {
   const { user, profile, refreshProfile } = useAuth();
 
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [toast, setToast] = useState('');
+
+  // The images endpoint is authenticated, so the photo is fetched as a blob
+  // rather than pointed at with <img src>. The object URL is revoked when the
+  // photo changes or the page unmounts.
+  useEffect(() => {
+    const photoId = profile?.photo_id;
+
+    if (!photoId) {
+      setPhotoUrl(null);
+      return undefined;
+    }
+
+    let active = true;
+    let created = null;
+
+    fetchImageObjectUrl(photoId)
+      .then((url) => {
+        if (!active) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+
+        created = url;
+        setPhotoUrl(url);
+      })
+      .catch(() => {
+        // Fall back to initials rather than breaking the page.
+        if (active) {
+          setPhotoUrl(null);
+        }
+      });
+
+    return () => {
+      active = false;
+
+      if (created) {
+        URL.revokeObjectURL(created);
+      }
+    };
+  }, [profile?.photo_id]);
 
   const fullName = [profile?.first_name, profile?.middle_name, profile?.last_name]
     .filter(Boolean)
@@ -119,6 +161,7 @@ function Profile() {
             }}
           >
             <Avatar
+              src={photoUrl || undefined}
               sx={{
                 width: 96,
                 height: 96,
