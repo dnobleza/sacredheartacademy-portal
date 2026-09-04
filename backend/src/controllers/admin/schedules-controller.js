@@ -6,6 +6,7 @@ const {
   validateCreateSchedule,
   validateUpdateSchedule,
   validatePagination,
+  isEndAfterStart,
 } = require('../../validations/schedule-validation');
 
 const SCHEDULE_SELECT_FIELDS = `
@@ -209,9 +210,11 @@ const createSchedule = async (req, res) => {
   }
 
   const connection = await pool.getConnection();
-  await connection.beginTransaction();
 
+  // beginTransaction is inside the guarded chain: if it throws, the finally
+  // below still returns the connection to the pool.
   const scheduleId = await (async () => {
+    await connection.beginTransaction();
     const clash = await checkForClashes(connection, {
       academicYearId,
       dayOfWeek,
@@ -379,10 +382,19 @@ const updateSchedule = async (req, res) => {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, partsError);
   }
 
-  const connection = await pool.getConnection();
-  await connection.beginTransaction();
+  // The validator can only compare the two times when the caller sent both.
+  // Sending just one inherits the other from the stored row, so the merged
+  // pair has to be checked here or an inverted range slips through.
+  if (!isEndAfterStart(startTime, endTime)) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'End time must be after start time.');
+  }
 
+  const connection = await pool.getConnection();
+
+  // beginTransaction is inside the guarded chain: if it throws, the finally
+  // below still returns the connection to the pool.
   await (async () => {
+    await connection.beginTransaction();
     const clash = await checkForClashes(connection, {
       academicYearId,
       dayOfWeek,

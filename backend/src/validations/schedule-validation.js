@@ -161,9 +161,19 @@ const validatePagination = (query) => {
   return { page, limit, search };
 };
 
+/**
+ * The end-after-start rule on an already-merged pair. validateUpdateSchedule
+ * can only apply it when the caller supplied both times; a partial update
+ * supplies one and inherits the other, so the controller re-checks the merged
+ * result through this.
+ */
+const isEndAfterStart = (startTime, endTime) =>
+  toMinutes(String(endTime)) > toMinutes(String(startTime));
+
 module.exports = {
   DAYS_OF_WEEK,
   validateCreateSchedule,
   validateUpdateSchedule,
   validatePagination,
+  isEndAfterStart,
 };

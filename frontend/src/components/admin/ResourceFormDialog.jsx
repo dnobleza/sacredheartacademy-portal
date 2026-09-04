@@ -23,6 +23,13 @@ const buildInitialValues = (fields, record) =>
       return { ...values, [field.name]: String(raw).slice(0, 10) };
     }
 
+    // MySQL TIME serialises as HH:MM:SS, which a native time input rejects at
+    // its default one-minute step — the field would open blank and silently
+    // lose the stored value on save.
+    if (field.type === 'time' && raw) {
+      return { ...values, [field.name]: String(raw).slice(0, 5) };
+    }
+
     return { ...values, [field.name]: raw ?? '' };
   }, {});
 
