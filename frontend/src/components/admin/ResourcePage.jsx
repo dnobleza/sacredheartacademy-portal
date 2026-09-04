@@ -102,7 +102,9 @@ const renderCell = (column, row) => {
     );
   }
 
-  return raw || '—';
+  // Not `raw || '—'`: a genuine 0 (a class with no students enrolled yet) is a
+  // value, and the em dash means "nothing recorded".
+  return raw === null || raw === undefined || raw === '' ? '—' : raw;
 };
 
 function ResourcePage({ resource }) {
@@ -147,6 +149,30 @@ function ResourcePage({ resource }) {
         listResource('grade-levels', { page: 1, limit: 100 }).then((data) =>
           // Numeric values, for the same reason as accessLevels above.
           data.items.map((row) => ({ value: row.id, label: row.name })),
+        ),
+      sections: () =>
+        listResource('sections', { page: 1, limit: 100 }).then((data) =>
+          // Section names repeat across grade levels, so the grade level
+          // disambiguates them here too.
+          data.items.map((row) => ({
+            value: row.id,
+            label: `${row.name} — ${row.grade_level_name}`,
+          })),
+        ),
+      subjects: () =>
+        listResource('subjects', { page: 1, limit: 100 }).then((data) =>
+          data.items.map((row) => ({ value: row.id, label: `${row.code} — ${row.name}` })),
+        ),
+      academicYears: () =>
+        listResource('academic-years', { page: 1, limit: 100 }).then((data) =>
+          data.items.map((row) => ({ value: row.id, label: row.name })),
+        ),
+      teachers: () =>
+        listResource('teachers', { page: 1, limit: 100 }).then((data) =>
+          data.items.map((row) => ({
+            value: row.id,
+            label: [row.first_name, row.last_name].filter(Boolean).join(' '),
+          })),
         ),
     }),
     [],

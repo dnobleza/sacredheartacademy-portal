@@ -5,6 +5,18 @@
  * step if the backend changes.
  */
 
+import { createElement } from 'react';
+import ClassStudentsDetail from '../components/admin/ClassStudentsDetail';
+
+const DAY_OPTIONS = [
+  { value: 'Monday', label: 'Monday' },
+  { value: 'Tuesday', label: 'Tuesday' },
+  { value: 'Wednesday', label: 'Wednesday' },
+  { value: 'Thursday', label: 'Thursday' },
+  { value: 'Friday', label: 'Friday' },
+  { value: 'Saturday', label: 'Saturday' },
+];
+
 const GENDER_OPTIONS = [
   { value: '', label: 'Not specified' },
   { value: 'male', label: 'Male' },
@@ -17,6 +29,10 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'Inactive' },
   { value: 'suspended', label: 'Suspended' },
 ];
+
+// MySQL TIME columns serialise as HH:MM:SS. The seconds are always zero for a
+// class period, so they are dropped for display.
+const toHourMinute = (value) => (value ? String(value).slice(0, 5) : value);
 
 const nameColumn = {
   field: 'name',
@@ -258,6 +274,123 @@ export const ADMIN_RESOURCES = {
       { name: 'description', label: 'Description', multiline: true, maxLength: 1000 },
     ],
   },
+
+  schedules: {
+    key: 'schedules',
+    label: 'Schedules',
+    singular: 'Schedule',
+    icon: 'CalendarClock',
+    // Not a person and not a login account. A schedule has no single natural
+    // name, so build one from subject + section + day + start time — enough
+    // to tell any two rows apart in the row action labels and the delete
+    // confirmation.
+    displayName: (row) =>
+      `${row.subject_name} — ${row.section_name} (${row.day_of_week} ${toHourMinute(row.start_time)})`,
+    searchHint: 'section, subject or teacher',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'day_of_week', label: 'Day', minWidth: 110 },
+      { field: 'start_time', label: 'Start', minWidth: 90, value: (row) => toHourMinute(row.start_time) },
+      { field: 'end_time', label: 'End', minWidth: 90, value: (row) => toHourMinute(row.end_time) },
+      { field: 'subject_name', label: 'Subject', minWidth: 160 },
+      { field: 'section_name', label: 'Section', minWidth: 140 },
+      { field: 'teacher_name', label: 'Teacher', minWidth: 160 },
+      { field: 'room', label: 'Room', minWidth: 100 },
+    ],
+    fields: [
+      {
+        name: 'section_id',
+        label: 'Section',
+        type: 'select',
+        required: true,
+        optionsSource: 'sections',
+      },
+      {
+        name: 'subject_id',
+        label: 'Subject',
+        type: 'select',
+        required: true,
+        optionsSource: 'subjects',
+      },
+      {
+        name: 'teacher_id',
+        label: 'Teacher',
+        type: 'select',
+        required: true,
+        optionsSource: 'teachers',
+      },
+      {
+        name: 'academic_year_id',
+        label: 'School year',
+        type: 'select',
+        required: true,
+        optionsSource: 'academicYears',
+      },
+      {
+        name: 'day_of_week',
+        label: 'Day',
+        type: 'select',
+        required: true,
+        options: DAY_OPTIONS,
+      },
+      { name: 'start_time', label: 'Start time', type: 'time', required: true },
+      { name: 'end_time', label: 'End time', type: 'time', required: true },
+      { name: 'room', label: 'Room', maxLength: 50 },
+    ],
+  },
+
+  classes: {
+    key: 'classes',
+    label: 'Classes',
+    singular: 'Class',
+    icon: 'Users2',
+    // Section names repeat across grade levels, so the grade level is what
+    // separates one advisory class from another in the row action labels and
+    // the delete confirmation.
+    displayName: (row) =>
+      `${row.section_name} — ${row.grade_level_name} (${row.academic_year_name})`,
+    searchHint: 'section or adviser',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'section_name', label: 'Section', minWidth: 150 },
+      { field: 'grade_level_name', label: 'Grade level', minWidth: 150 },
+      { field: 'academic_year_name', label: 'School year', minWidth: 140 },
+      { field: 'teacher_name', label: 'Adviser', minWidth: 160 },
+      { field: 'student_count', label: 'Students', minWidth: 100 },
+    ],
+    fields: [
+      {
+        name: 'section_id',
+        label: 'Section',
+        type: 'select',
+        required: true,
+        optionsSource: 'sections',
+      },
+      {
+        name: 'academic_year_id',
+        label: 'School year',
+        type: 'select',
+        required: true,
+        optionsSource: 'academicYears',
+      },
+      {
+        name: 'teacher_id',
+        label: 'Adviser',
+        type: 'select',
+        required: true,
+        optionsSource: 'teachers',
+      },
+    ],
+    // Students are derived from enrolment (read-only) — never a form field.
+    // ResourceFormDialog fetches the full record (with `students`) on edit
+    // and renders whatever this returns below the form fields.
+    renderDetail: (detailRecord, loading) =>
+      createElement(ClassStudentsDetail, { detailRecord, loading }),
+  },
 };
 
 export const ADMIN_NAV = [
@@ -286,5 +419,17 @@ export const ADMIN_NAV = [
       { to: '/admin/sections', label: 'Section', icon: 'DoorOpen' },
       { to: '/admin/subjects', label: 'Subjects', icon: 'BookOpen' },
     ],
+  },
+  {
+    key: 'schedule',
+    label: 'Schedule Management',
+    icon: 'CalendarClock',
+    children: [{ to: '/admin/schedules', label: 'Schedule', icon: 'CalendarClock' }],
+  },
+  {
+    key: 'class',
+    label: 'Class Management',
+    icon: 'Users2',
+    children: [{ to: '/admin/classes', label: 'Class', icon: 'Users2' }],
   },
 ];

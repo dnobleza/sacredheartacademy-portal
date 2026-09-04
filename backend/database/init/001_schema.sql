@@ -42,6 +42,24 @@ CREATE TABLE `academic_years` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `advisory_classes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `section_id` int NOT NULL,
+  `academic_year_id` int NOT NULL,
+  `teacher_id` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `section_year` (`section_id`,`academic_year_id`),
+  KEY `academic_year_id` (`academic_year_id`),
+  KEY `teacher_id` (`teacher_id`),
+  CONSTRAINT `advisory_classes_ibfk_1` FOREIGN KEY (`section_id`) REFERENCES `sections` (`id`),
+  CONSTRAINT `advisory_classes_ibfk_2` FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`),
+  CONSTRAINT `advisory_classes_ibfk_3` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `admins` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
@@ -236,8 +254,11 @@ CREATE TABLE `schedules` (
   `start_time` time NOT NULL,
   `end_time` time NOT NULL,
   `room` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `class_subject_id` (`class_subject_id`),
+  UNIQUE KEY `class_subject_slot` (`class_subject_id`,`day_of_week`,`start_time`),
   CONSTRAINT `schedules_ibfk_1` FOREIGN KEY (`class_subject_id`) REFERENCES `class_subjects` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

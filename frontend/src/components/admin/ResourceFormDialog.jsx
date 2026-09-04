@@ -10,6 +10,7 @@ import Grid from '@mui/material/Grid2';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import GradientButton from '../common/GradientButton';
+import { getResource } from '../../services/adminApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -77,6 +78,13 @@ function ResourceFormDialog({
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Read-only supplementary info (e.g. a class's enrolled students) that a
+  // resource may want to show alongside the form fields. Only resources that
+  // set `renderDetail` pay for the extra request, and only on edit — a new
+  // record has no id to fetch detail for.
+  const [detailRecord, setDetailRecord] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   useEffect(() => {
     if (open) {
       setValues(buildInitialValues(fields, record));
@@ -85,6 +93,35 @@ function ResourceFormDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, record]);
+
+  useEffect(() => {
+    if (!open || !record || !resource.renderDetail) {
+      setDetailRecord(null);
+      return;
+    }
+
+    let active = true;
+    setDetailLoading(true);
+
+    getResource(resource.key, record.id)
+      .then((data) => {
+        if (active) {
+          setDetailRecord(data);
+        }
+      })
+      .catch(() => {
+        // Leaving detailRecord null falls back to the empty-state message.
+      })
+      .finally(() => {
+        if (active) {
+          setDetailLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open, record, resource]);
 
   const handleChange = (name) => (event) => {
     setValues((current) => ({ ...current, [name]: event.target.value }));
@@ -157,7 +194,11 @@ function ResourceFormDialog({
                   disabled={submitting}
                   fullWidth
                   slotProps={
-                    field.type === 'date' ? { inputLabel: { shrink: true } } : undefined
+                    // A native date or time input paints its own placeholder, which
+                    // the floating label would otherwise sit on top of.
+                    field.type === 'date' || field.type === 'time'
+                      ? { inputLabel: { shrink: true } }
+                      : undefined
                   }
                 >
                   {field.type === 'select' &&
@@ -170,6 +211,8 @@ function ResourceFormDialog({
               </Grid>
             ))}
           </Grid>
+
+          {isEdit && resource.renderDetail && resource.renderDetail(detailRecord, detailLoading)}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2 }}>
