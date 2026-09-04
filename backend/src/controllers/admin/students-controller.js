@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const pool = require('../../config/database');
+const { findSoleAccessLevelId } = require('../../utils/access-levels');
 const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
@@ -57,16 +58,20 @@ const createStudent = async (req, res) => {
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
+  // users.access_level_id is NOT NULL. This role has exactly one access level,
+  // so it is resolved rather than asked for: unlike admins, there is nothing to
+  // choose. The helper throws if that ever stops being true.
+  const accessLevelId = await findSoleAccessLevelId(STUDENT_ROLE_ID);
+
   const connection = await pool.getConnection();
   await connection.beginTransaction();
 
   const student = await connection
-    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
-      STUDENT_ROLE_ID,
-      email,
-      passwordHash,
-      'active',
-    ])
+    .execute(
+      `INSERT INTO users (role_id, access_level_id, email, password_hash, status)
+       VALUES (?, ?, ?, ?, ?)`,
+      [STUDENT_ROLE_ID, accessLevelId, email, passwordHash, 'active'],
+    )
     .then(([userResult]) =>
       connection
         .execute(

@@ -10,6 +10,7 @@ const {
   validatePagination,
   normalizePhone,
 } = require('../../validations/admin-validation');
+const { ACCESS_LEVELS } = require('../../utils/access-levels');
 
 const ADMIN_ROLE_ID = 1;
 const PASSWORD_LENGTH = 12;
@@ -274,6 +275,17 @@ const updateAdmin = async (req, res) => {
   }
 
   const { user_id: userId } = existing[0];
+
+  // The route lets any admin through so they can edit their own profile. Every
+  // other admin's record is Super Admin territory, matching the level guard on
+  // the rest of this router.
+  if (userId !== req.user.userId && req.user.accessLevel !== ACCESS_LEVELS.SUPER_ADMIN) {
+    return sendError(
+      res,
+      HTTP_STATUS.FORBIDDEN,
+      'Only a Super Admin can edit another admin account.',
+    );
+  }
 
   // Same reasoning as the self-deletion guard below: an admin setting their
   // own account inactive or suspended locks themselves out on the next token

@@ -158,7 +158,9 @@ export const ADMIN_NAV = [
       { to: '/admin/students', label: 'Students', icon: 'GraduationCap' },
       { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
       { to: '/admin/parents', label: 'Parents', icon: 'Users' },
-      { to: '/admin/admins', label: 'Admins', icon: 'ShieldCheck' },
+      // Managing admin accounts is Super Admin only on the server; hiding the
+      // link keeps a lower-level admin from walking into a 403.
+      { to: '/admin/admins', label: 'Admins', icon: 'ShieldCheck', minAccessLevel: 4 },
     ],
   },
 ];
