@@ -52,7 +52,9 @@ const ICONS = {
   Layers,
 };
 
-const EXPANDED_WIDTH = 248;
+// Wide enough for the longest nav label ("Academic Management") plus its icon
+// and chevron; below this the label truncates and the chevron is pushed out.
+const EXPANDED_WIDTH = 296;
 const COLLAPSED_WIDTH = 76;
 const STORAGE_KEY = 'admin.sidebar.collapsed';
 
@@ -110,29 +112,8 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
     () => visibleNav(ADMIN_NAV, user?.access_level?.level ?? -1),
     [user],
   );
-  const [openGroups, setOpenGroups] = useState(() => {
-    const initial = {};
-    ADMIN_NAV.forEach((item) => {
-      if (item.children?.some((child) => location.pathname.startsWith(child.to))) {
-        initial[item.key] = true;
-      }
-    });
-    return initial;
-  });
+  const [openGroups, setOpenGroups] = useState({});
   const [popover, setPopover] = useState({ anchorEl: null, item: null });
-
-  // Keep a group open once the route lands inside it, without letting a
-  // manual close snap back open on every re-render.
-  useEffect(() => {
-    ADMIN_NAV.forEach((item) => {
-      if (item.children?.some((child) => location.pathname.startsWith(child.to))) {
-        setOpenGroups((prev) => (prev[item.key] ? prev : { ...prev, [item.key]: true }));
-      }
-    });
-  }, [location.pathname]);
-
-  const isGroupActive = (item) =>
-    Boolean(item.children?.some((child) => location.pathname.startsWith(child.to)));
 
   const toggleGroup = (key) => {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -220,7 +201,6 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
         {navItems.map((item) => {
           if (item.children) {
             const GroupIcon = ICONS[item.icon];
-            const groupActive = isGroupActive(item);
             const open = Boolean(openGroups[item.key]);
             const submenuId = `nav-group-${item.key}`;
 
@@ -246,11 +226,6 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
                 sx={{
                   ...navLinkSx(collapsed),
                   cursor: 'pointer',
-                  ...(groupActive && {
-                    backgroundColor: 'primary.light',
-                    color: 'primary.dark',
-                    fontWeight: 700,
-                  }),
                   '&:focus-visible': { outline: `2px solid ${AQUA.dark}`, outlineOffset: -2 },
                 }}
               >
@@ -259,7 +234,20 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
                 </Box>
                 {!collapsed && (
                   <>
-                    <Box component="span" sx={{ flexGrow: 1, whiteSpace: 'nowrap' }}>
+                    {/* minWidth: 0 lets this shrink below its text width. Without
+                        it a flex item refuses to shrink past its content, so a
+                        long label such as "Academic Management" pushed the
+                        chevron outside the sidebar and it vanished. */}
+                    <Box
+                      component="span"
+                      sx={{
+                        flexGrow: 1,
+                        minWidth: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
                       {item.label}
                     </Box>
                     <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
