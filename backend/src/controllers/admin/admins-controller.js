@@ -39,6 +39,14 @@ const findAdminAccessLevel = async (accessLevelId) => {
   return rows[0] || null;
 };
 
+// Same pattern as findAdminAccessLevel: validate the foreign key up front so
+// a bad photo_id is a 400, not a 500 from the FK constraint.
+const findImage = async (imageId) => {
+  const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
+
+  return rows[0] || null;
+};
+
 const ADMIN_SELECT_FIELDS = `
   admins.id,
   admins.user_id,
@@ -49,6 +57,7 @@ const ADMIN_SELECT_FIELDS = `
   admins.gender,
   admins.address,
   admins.contact_number,
+  admins.photo_id,
   admins.created_at,
   admins.updated_at,
   users.email,
@@ -76,12 +85,23 @@ const createAdmin = async (req, res) => {
   const contactNumber = req.body.contact_number
     ? normalizePhone(req.body.contact_number).trim()
     : null;
+  const photoId = req.body.photo_id !== undefined && req.body.photo_id !== null
+    ? Number(req.body.photo_id)
+    : null;
 
   const accessLevelId = Number(req.body.access_level_id);
   const accessLevel = await findAdminAccessLevel(accessLevelId);
 
   if (!accessLevel) {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Access level is not valid for an admin.');
+  }
+
+  if (photoId !== null) {
+    const image = await findImage(photoId);
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
+    }
   }
 
   const temporaryPassword = generateTemporaryPassword();
@@ -100,8 +120,8 @@ const createAdmin = async (req, res) => {
       connection
         .execute(
           `INSERT INTO admins
-            (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number, photo_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             userResult.insertId,
             employeeNumber,
@@ -111,6 +131,7 @@ const createAdmin = async (req, res) => {
             gender,
             address,
             contactNumber,
+            photoId,
           ],
         )
         .then(([adminResult]) => ({
@@ -133,6 +154,7 @@ const createAdmin = async (req, res) => {
     gender,
     address,
     contact_number: contactNumber,
+    photo_id: photoId,
     status: 'active',
     access_level_id: accessLevelId,
     temporary_password: temporaryPassword,
@@ -219,9 +241,14 @@ const ADMIN_UPDATE_FIELDS = [
   'gender',
   'address',
   'contact_number',
+  'photo_id',
 ];
 
 const normalizeUpdateValue = (field, value) => {
+  if (field === 'photo_id') {
+    return value === undefined || value === null ? null : Number(value);
+  }
+
   if (value === undefined || value === null || value === '') {
     return null;
   }
@@ -313,6 +340,16 @@ const updateAdmin = async (req, res) => {
 
     if (!accessLevel) {
       return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Access level is not valid for an admin.');
+    }
+  }
+
+  // Explicit null clears the photo; any other provided value must resolve to
+  // a real image row.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'photo_id') && req.body.photo_id !== null) {
+    const image = await findImage(Number(req.body.photo_id));
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
     }
   }
 

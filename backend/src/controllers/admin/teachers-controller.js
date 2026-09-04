@@ -31,11 +31,20 @@ const TEACHER_SELECT_FIELDS = `
   teachers.gender,
   teachers.address,
   teachers.contact_number,
+  teachers.photo_id,
   teachers.created_at,
   teachers.updated_at,
   users.email,
   users.status
 `;
+
+// Mirrors findGradeLevel in sections-controller.js: validate the foreign key
+// up front so a bad photo_id is a 400, not a 500 from the FK constraint.
+const findImage = async (imageId) => {
+  const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
+
+  return rows[0] || null;
+};
 
 const createTeacher = async (req, res) => {
   const validationErrors = validateCreateTeacher(req.body);
@@ -54,6 +63,17 @@ const createTeacher = async (req, res) => {
   const contactNumber = req.body.contact_number
     ? normalizePhone(req.body.contact_number).trim()
     : null;
+  const photoId = req.body.photo_id !== undefined && req.body.photo_id !== null
+    ? Number(req.body.photo_id)
+    : null;
+
+  if (photoId !== null) {
+    const image = await findImage(photoId);
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
+    }
+  }
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
@@ -76,8 +96,8 @@ const createTeacher = async (req, res) => {
       connection
         .execute(
           `INSERT INTO teachers
-            (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, employee_number, first_name, last_name, middle_name, gender, address, contact_number, photo_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             userResult.insertId,
             employeeNumber,
@@ -87,6 +107,7 @@ const createTeacher = async (req, res) => {
             gender,
             address,
             contactNumber,
+            photoId,
           ],
         )
         .then(([teacherResult]) => ({
@@ -109,6 +130,7 @@ const createTeacher = async (req, res) => {
     gender,
     address,
     contact_number: contactNumber,
+    photo_id: photoId,
     status: 'active',
     temporary_password: temporaryPassword,
   });
@@ -192,9 +214,14 @@ const TEACHER_UPDATE_FIELDS = [
   'gender',
   'address',
   'contact_number',
+  'photo_id',
 ];
 
 const normalizeUpdateValue = (field, value) => {
+  if (field === 'photo_id') {
+    return value === undefined || value === null ? null : Number(value);
+  }
+
   if (value === undefined || value === null || value === '') {
     return null;
   }
@@ -245,6 +272,16 @@ const updateTeacher = async (req, res) => {
 
   if (existing.length === 0) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Teacher not found.');
+  }
+
+  // Explicit null clears the photo; any other provided value must resolve to
+  // a real image row.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'photo_id') && req.body.photo_id !== null) {
+    const image = await findImage(Number(req.body.photo_id));
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
+    }
   }
 
   const { user_id: userId } = existing[0];

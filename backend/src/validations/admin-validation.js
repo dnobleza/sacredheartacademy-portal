@@ -28,6 +28,18 @@ const validatePhone = (contactNumber, errors) => {
   }
 };
 
+// Only checks the shape. Whether the id exists needs a database read, so the
+// controller does that part (findImage), same as access_level_id.
+const validateImageId = (imageId, errors) => {
+  if (!isProvided(imageId)) {
+    return;
+  }
+
+  if (imageId !== null && (!Number.isInteger(Number(imageId)) || Number(imageId) < 1)) {
+    errors.push('Image must be a valid selection.');
+  }
+};
+
 const validateCreateAdmin = (payload) => {
   const errors = [];
   const {
@@ -40,6 +52,7 @@ const validateCreateAdmin = (payload) => {
     address,
     contact_number: contactNumber,
     access_level_id: accessLevelId,
+    photo_id: photoId,
   } = payload || {};
 
   if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
@@ -89,6 +102,7 @@ const validateCreateAdmin = (payload) => {
   }
 
   validateAccessLevelId(accessLevelId, errors);
+  validateImageId(photoId, errors);
 
   return errors;
 };
@@ -104,6 +118,7 @@ const UPDATABLE_FIELDS = [
   'gender',
   'address',
   'contact_number',
+  'photo_id',
 ];
 
 const validateUpdateAdmin = (payload) => {
@@ -189,6 +204,10 @@ const validateUpdateAdmin = (payload) => {
 
   if (provided.includes('contact_number') && isProvided(body.contact_number)) {
     validatePhone(body.contact_number, errors);
+  }
+
+  if (provided.includes('photo_id')) {
+    validateImageId(body.photo_id, errors);
   }
 
   return errors;

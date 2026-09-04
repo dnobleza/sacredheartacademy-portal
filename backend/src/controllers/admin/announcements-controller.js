@@ -22,10 +22,20 @@ const ANNOUNCEMENT_SELECT_FIELDS = `
   announcements.title,
   announcements.content,
   announcements.target_role,
+  announcements.image_id,
   ${AUTHOR_NAME_EXPR} AS author_name,
   announcements.created_at,
   announcements.updated_at
 `;
+
+// Mirrors findGradeLevel in sections-controller.js: validate the foreign key
+// up front so a bad image_id surfaces as a 400, not a 500 from the FK
+// constraint.
+const findImage = async (imageId) => {
+  const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
+
+  return rows[0] || null;
+};
 
 const ANNOUNCEMENT_JOINS = `
   FROM announcements
@@ -43,6 +53,17 @@ const createAnnouncement = async (req, res) => {
   const title = req.body.title.trim();
   const content = req.body.content.trim();
   const targetRole = req.body.target_role || 'all';
+  const imageId = req.body.image_id !== undefined && req.body.image_id !== null
+    ? Number(req.body.image_id)
+    : null;
+
+  if (imageId !== null) {
+    const image = await findImage(imageId);
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
+    }
+  }
 
   // created_by always comes from the authenticated session, never the
   // request body — otherwise an admin could post an announcement under
@@ -50,8 +71,8 @@ const createAnnouncement = async (req, res) => {
   const createdBy = req.user.userId;
 
   const [result] = await pool.execute(
-    'INSERT INTO announcements (created_by, title, content, target_role) VALUES (?, ?, ?, ?)',
-    [createdBy, title, content, targetRole],
+    'INSERT INTO announcements (created_by, title, content, target_role, image_id) VALUES (?, ?, ?, ?, ?)',
+    [createdBy, title, content, targetRole, imageId],
   );
 
   return sendCreated(res, {
@@ -60,6 +81,7 @@ const createAnnouncement = async (req, res) => {
     title,
     content,
     target_role: targetRole,
+    image_id: imageId,
   });
 };
 
@@ -110,9 +132,13 @@ const getAnnouncementById = async (req, res) => {
   return sendOk(res, rows[0]);
 };
 
-const UPDATE_FIELDS = ['title', 'content', 'target_role'];
+const UPDATE_FIELDS = ['title', 'content', 'target_role', 'image_id'];
 
 const normalizeUpdateValue = (field, value) => {
+  if (field === 'image_id') {
+    return value === undefined || value === null ? null : Number(value);
+  }
+
   if (typeof value === 'string') {
     return field === 'content' ? value.trim() : value.trim();
   }
@@ -151,6 +177,19 @@ const updateAnnouncement = async (req, res) => {
 
   if (existing.length === 0) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Announcement not found.');
+  }
+
+  // Explicit null clears the picture; any other provided value must resolve
+  // to a real image row.
+  if (
+    Object.prototype.hasOwnProperty.call(req.body, 'image_id') &&
+    req.body.image_id !== null
+  ) {
+    const image = await findImage(Number(req.body.image_id));
+
+    if (!image) {
+      return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Image is not valid.');
+    }
   }
 
   // created_by is deliberately excluded from UPDATE_FIELDS: authorship of an

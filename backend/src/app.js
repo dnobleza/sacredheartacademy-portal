@@ -77,6 +77,7 @@ app.use('/api/v1/admin/classes', require('./routes/admin/classes-routes'));
 app.use('/api/v1/admin/announcements', require('./routes/admin/announcements-routes'));
 app.use('/api/v1/admin/dashboard', require('./routes/admin/dashboard-routes'));
 app.use('/api/v1/messages', require('./routes/shared/messages-routes'));
+app.use('/api/v1/images', require('./routes/shared/images-routes'));
 
 app.use((req, res) => {
   sendError(res, HTTP_STATUS.NOT_FOUND, `Route not found: ${req.method} ${req.originalUrl}`);

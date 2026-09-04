@@ -48,18 +48,32 @@ const validateTargetRole = (targetRole, errors) => {
   }
 };
 
+// Only checks the shape. Whether the id exists needs a database read, so the
+// controller does that part (findImage), mirroring how access_level_id and
+// grade_level_id are validated elsewhere.
+const validateImageId = (imageId, errors) => {
+  if (!isProvided(imageId)) {
+    return;
+  }
+
+  if (imageId !== null && (!Number.isInteger(Number(imageId)) || Number(imageId) < 1)) {
+    errors.push('Image must be a valid selection.');
+  }
+};
+
 const validateCreateAnnouncement = (payload) => {
   const errors = [];
-  const { title, content, target_role: targetRole } = payload || {};
+  const { title, content, target_role: targetRole, image_id: imageId } = payload || {};
 
   validateTitle(title, errors, { required: true });
   validateContent(content, errors, { required: true });
   validateTargetRole(targetRole, errors);
+  validateImageId(imageId, errors);
 
   return errors;
 };
 
-const UPDATABLE_FIELDS = ['title', 'content', 'target_role'];
+const UPDATABLE_FIELDS = ['title', 'content', 'target_role', 'image_id'];
 
 const validateUpdateAnnouncement = (payload) => {
   const errors = [];
@@ -83,6 +97,10 @@ const validateUpdateAnnouncement = (payload) => {
 
   if (provided.includes('target_role')) {
     validateTargetRole(body.target_role, errors);
+  }
+
+  if (provided.includes('image_id')) {
+    validateImageId(body.image_id, errors);
   }
 
   return errors;
