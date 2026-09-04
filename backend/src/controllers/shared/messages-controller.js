@@ -3,6 +3,7 @@ const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
 const { validateCreateMessage } = require('../../validations/message-validation');
+const { notifyUser } = require('../../utils/notifications');
 
 // SECURITY: this lives in shared/ (not admin/) because every role messages
 // through the same table once their portals exist — there is no per-role
@@ -142,6 +143,20 @@ const createMessage = async (req, res) => {
     'SELECT id, sender_id, receiver_id, message, subject, is_read, created_at FROM messages WHERE id = ?',
     [result.insertId],
   );
+
+  const [senderRows] = await pool.execute(
+    `SELECT ${NAME_EXPR} AS name FROM users ${PROFILE_JOINS} WHERE users.id = ?`,
+    [senderId],
+  );
+
+  // Best effort: the message is already stored, so a failed bell entry must
+  // not turn a delivered message into an error.
+  await notifyUser({
+    userId: receiverId,
+    title: `New message from ${senderRows[0] ? senderRows[0].name : 'a user'}`,
+    message: subject || message,
+    type: 'message',
+  });
 
   logger.info(`Message ${result.insertId} sent by user ${senderId} to user ${receiverId}`);
 
