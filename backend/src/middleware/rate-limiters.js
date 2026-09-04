@@ -31,6 +31,17 @@ const loginLimiter = rateLimit({
   handler: buildHandler('Too many login attempts. Please try again in 15 minutes.'),
 });
 
+// Called on every page load to swap the refresh cookie for an access token,
+// so the ceiling is generous — it exists to blunt cookie brute-forcing, not
+// to throttle normal use.
+const refreshLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: buildHandler('Too many session refresh attempts. Please sign in again.'),
+});
+
 const accountCreationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 30,
@@ -42,5 +53,6 @@ const accountCreationLimiter = rateLimit({
 module.exports = {
   generalLimiter,
   loginLimiter,
+  refreshLimiter,
   accountCreationLimiter,
 };

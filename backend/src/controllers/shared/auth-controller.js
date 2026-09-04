@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/database');
@@ -31,6 +32,155 @@ const findProfileByUserId = async (roleName, userId) => {
   return rows[0] || null;
 };
 
+// Access level travels with the user on every lookup so login, refresh and
+// /auth/me return the same shape. The composite foreign key on users
+// guarantees the level belongs to the user's role, so this join can never
+// widen access on its own.
+const ACCESS_LEVEL_FIELDS = `
+  access_levels.id AS access_level_id,
+  access_levels.code AS access_level_code,
+  access_levels.level AS access_level,
+  access_levels.name AS access_level_name
+`;
+
+const ACCESS_LEVEL_JOIN = 'JOIN access_levels ON access_levels.id = users.access_level_id';
+
+const toAccessLevel = (row) => ({
+  id: row.access_level_id,
+  code: row.access_level_code,
+  level: row.access_level,
+  name: row.access_level_name,
+});
+
+const findActiveUserById = async (userId) => {
+  const [rows] = await pool.execute(
+    `SELECT users.id, users.email, users.status, roles.name AS role, ${ACCESS_LEVEL_FIELDS}
+     FROM users
+     JOIN roles ON roles.id = users.role_id
+     ${ACCESS_LEVEL_JOIN}
+     WHERE users.id = ?`,
+    [userId],
+  );
+
+  const user = rows[0];
+  return user && user.status === 'active' ? user : null;
+};
+
+const refreshCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: env.NODE_ENV === 'production',
+});
+
+/**
+ * Best-effort cleanup of expired denylist rows. Called opportunistically on
+ * logout rather than via a cron job, so the table never grows unbounded.
+ */
+const purgeExpiredRevokedTokens = async () => {
+  try {
+    await pool.execute('DELETE FROM revoked_tokens WHERE expires_at < NOW()');
+  } catch (error) {
+    logger.warn(`Failed to purge expired revoked tokens: ${error.message}`);
+  }
+};
+
+// A token rotated away stays usable for this long so two tabs refreshing at
+// the same moment do not knock each other out. Long enough to cover a request
+// already in flight, far too short to be useful to an attacker replaying a
+// token captured later.
+const ROTATION_GRACE_MS = 60 * 1000;
+
+/**
+ * A token is refused when it has been revoked outright (logout, where
+ * redeemable_until is NULL) or when its rotation grace window has passed.
+ */
+const isTokenRevoked = async (jti) => {
+  if (!jti) {
+    return false;
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id FROM revoked_tokens
+     WHERE jti = ? AND (redeemable_until IS NULL OR redeemable_until < NOW())`,
+    [jti],
+  );
+
+  return rows.length > 0;
+};
+
+/**
+ * Records a refresh token as spent. `graceMs` of 0 revokes it outright — used
+ * by logout, which must be immediate and final.
+ */
+const revokeToken = async (jti, userId, expSeconds, graceMs = 0) => {
+  if (!jti || !userId || !expSeconds) {
+    return;
+  }
+
+  const expiresAt = new Date(expSeconds * 1000);
+  const redeemableUntil = graceMs > 0 ? new Date(Date.now() + graceMs) : null;
+
+  try {
+    await pool.execute(
+      `INSERT INTO revoked_tokens (jti, user_id, expires_at, redeemable_until)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE redeemable_until = LEAST(
+         COALESCE(VALUES(redeemable_until), '1970-01-01'),
+         COALESCE(redeemable_until, '1970-01-01')
+       )`,
+      [jti, userId, expiresAt, redeemableUntil],
+    );
+  } catch (error) {
+    logger.warn(`Failed to revoke refresh token jti=${jti}: ${error.message}`);
+  }
+};
+
+/**
+ * Signs a fresh access/refresh pair, sets the refresh cookie, and returns the
+ * body shared by login and refresh so both stay in step.
+ */
+const issueSession = async (res, user) => {
+  const profile = await findProfileByUserId(user.role, user.id);
+
+  const tokenPayload = {
+    userId: user.id,
+    role: user.role,
+    profileId: profile ? profile.id : null,
+    // The numeric tier only. Names are for display and come from /auth/me, so
+    // the token stays small. A future level guard must treat a missing claim
+    // as a denial: refresh tokens issued before access levels shipped carry
+    // none until they expire.
+    accessLevel: user.access_level,
+  };
+
+  const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+  });
+  const refreshToken = jwt.sign(
+    { ...tokenPayload, jti: crypto.randomUUID() },
+    env.JWT_REFRESH_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY },
+  );
+
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+    ...refreshCookieOptions(),
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+  });
+
+  const { password_hash: passwordHash, ...safeProfile } = profile || {};
+
+  return {
+    accessToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      access_level: toAccessLevel(user),
+    },
+    profile: safeProfile,
+  };
+};
+
 const login = async (req, res) => {
   const validationErrors = validateLogin(req.body);
 
@@ -42,9 +192,11 @@ const login = async (req, res) => {
   const { password } = req.body;
 
   const [users] = await pool.execute(
-    `SELECT users.id, users.email, users.password_hash, users.status, roles.name AS role
+    `SELECT users.id, users.email, users.password_hash, users.status, roles.name AS role,
+            ${ACCESS_LEVEL_FIELDS}
      FROM users
      JOIN roles ON roles.id = users.role_id
+     ${ACCESS_LEVEL_JOIN}
      WHERE users.email = ?`,
     [email],
   );
@@ -67,52 +219,99 @@ const login = async (req, res) => {
     return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'This account is not active.');
   }
 
-  const profile = await findProfileByUserId(user.role, user.id);
+  return sendOk(res, await issueSession(res, user));
+};
 
-  const tokenPayload = {
-    userId: user.id,
-    role: user.role,
-    profileId: profile ? profile.id : null,
+/**
+ * Exchanges the httpOnly refresh cookie for a new access token so a page
+ * reload does not sign the user out. The cookie is the credential here, so the
+ * user row is re-read on every call — a deactivated or deleted account must not
+ * be able to ride an old refresh token.
+ */
+const refresh = async (req, res) => {
+  const token = req.cookies ? req.cookies[REFRESH_COOKIE_NAME] : null;
+
+  const rejectSession = () => {
+    res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'Your session has expired. Please sign in again.');
   };
 
-  const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRY,
-  });
-  const refreshToken = jwt.sign(tokenPayload, env.JWT_REFRESH_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRY,
-  });
+  if (!token) {
+    return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'Your session has expired. Please sign in again.');
+  }
 
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: env.NODE_ENV === 'production',
-    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-  });
+  let decoded;
 
+  try {
+    decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+  } catch (error) {
+    logger.warn(`Rejected refresh token from ${req.ip}: ${error.message}`);
+    return rejectSession();
+  }
+
+  if (await isTokenRevoked(decoded.jti)) {
+    logger.warn(`Rejected reused/revoked refresh token from ${req.ip}`);
+    return rejectSession();
+  }
+
+  const user = await findActiveUserById(decoded.userId);
+
+  if (!user) {
+    return rejectSession();
+  }
+
+  // Rotation: the old token is spent, but stays valid for a brief grace window
+  // so a concurrent refresh from another tab is not thrown out.
+  await revokeToken(decoded.jti, decoded.userId, decoded.exp, ROTATION_GRACE_MS);
+
+  return sendOk(res, await issueSession(res, user));
+};
+
+const me = async (req, res) => {
+  const user = await findActiveUserById(req.user.userId);
+
+  if (!user) {
+    return sendError(res, HTTP_STATUS.UNAUTHORIZED, 'This account is no longer active.');
+  }
+
+  const profile = await findProfileByUserId(user.role, user.id);
   const { password_hash: passwordHash, ...safeProfile } = profile || {};
 
   return sendOk(res, {
-    accessToken,
     user: {
       id: user.id,
       email: user.email,
       role: user.role,
+      access_level: toAccessLevel(user),
     },
     profile: safeProfile,
   });
 };
 
-const logout = (req, res) => {
-  res.clearCookie(REFRESH_COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: env.NODE_ENV === 'production',
-  });
+const logout = async (req, res) => {
+  const token = req.cookies ? req.cookies[REFRESH_COOKIE_NAME] : null;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+      await revokeToken(decoded.jti, decoded.userId, decoded.exp);
+    } catch (error) {
+      // Already expired or unparseable — nothing to revoke. Logout must
+      // still succeed and clear the cookie.
+      logger.warn(`Logout with unrevocable refresh token from ${req.ip}: ${error.message}`);
+    }
+  }
+
+  await purgeExpiredRevokedTokens();
+
+  res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
 
   return sendOk(res, {});
 };
 
 module.exports = {
   login,
+  refresh,
+  me,
   logout,
 };

@@ -131,7 +131,7 @@ Do not reorganize the project structure unnecessarily.
 
 # 4. User Roles
 
-The system has exactly four primary roles:
+The system has four primary roles:
 
 ```text
 admin
@@ -139,6 +139,30 @@ teacher
 student
 parent
 ```
+
+Job titles are not roles. Librarian, laboratory staff and registrar are
+**access levels within the admin role**, stored in `access_levels`:
+
+```text
+Lvl-0  Student           student
+Lvl-0  Parent            parent
+Lvl-1  Teacher           teacher
+Lvl-2  Laboratory Staff  admin
+Lvl-3  Librarian         admin
+Lvl-3  Registrar         admin
+Lvl-4  Super Admin       admin
+```
+
+Every access level belongs to exactly one role, and `users` carries a
+composite foreign key on `(access_level_id, role_id)` so the database rejects
+a user whose level belongs to a different role. A teacher can never hold
+Super Admin.
+
+Authorization is still role-based: `authorizeRoles` matches on the role name.
+The level rides in the JWT as the `accessLevel` claim and in `/api/auth/me`,
+ready for a level guard later. Such a guard must treat a **missing** claim as
+a denial, not as level 0 — tokens issued before access levels shipped carry
+none.
 
 Roles must be stored in the database and must not be hardcoded throughout the application.
 

@@ -66,6 +66,8 @@ app.use('/api/v1/auth', require('./routes/shared/auth-routes'));
 app.use('/api/v1/admin/teachers', require('./routes/admin/teachers-routes'));
 app.use('/api/v1/admin/students', require('./routes/admin/students-routes'));
 app.use('/api/v1/admin/parents', require('./routes/admin/parents-routes'));
+app.use('/api/v1/admin/admins', require('./routes/admin/admins-routes'));
+app.use('/api/v1/admin/access-levels', require('./routes/admin/access-levels-routes'));
 
 app.use((req, res) => {
   sendError(res, HTTP_STATUS.NOT_FOUND, `Route not found: ${req.method} ${req.originalUrl}`);

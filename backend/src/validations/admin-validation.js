@@ -8,6 +8,16 @@ const normalizePhone = (value) =>
 
 const isProvided = (value) => value !== undefined && value !== null && value !== '';
 
+// Only checks the shape. Whether the id exists and belongs to the admin role
+// needs a database read, so the controller does that part.
+const validateAccessLevelId = (accessLevelId, errors) => {
+  const parsed = Number(accessLevelId);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    errors.push('Access level is required and must be a valid selection.');
+  }
+};
+
 const validatePhone = (contactNumber, errors) => {
   const normalized = normalizePhone(contactNumber);
 
@@ -18,7 +28,7 @@ const validatePhone = (contactNumber, errors) => {
   }
 };
 
-const validateCreateTeacher = (payload) => {
+const validateCreateAdmin = (payload) => {
   const errors = [];
   const {
     email,
@@ -29,6 +39,7 @@ const validateCreateTeacher = (payload) => {
     gender,
     address,
     contact_number: contactNumber,
+    access_level_id: accessLevelId,
   } = payload || {};
 
   if (!email || typeof email !== 'string' || !EMAIL_REGEX.test(email.trim())) {
@@ -77,12 +88,15 @@ const validateCreateTeacher = (payload) => {
     validatePhone(contactNumber, errors);
   }
 
+  validateAccessLevelId(accessLevelId, errors);
+
   return errors;
 };
 
 const UPDATABLE_FIELDS = [
   'email',
   'status',
+  'access_level_id',
   'employee_number',
   'first_name',
   'last_name',
@@ -92,7 +106,7 @@ const UPDATABLE_FIELDS = [
   'contact_number',
 ];
 
-const validateUpdateTeacher = (payload) => {
+const validateUpdateAdmin = (payload) => {
   const errors = [];
   const body = payload || {};
   const provided = UPDATABLE_FIELDS.filter((field) =>
@@ -118,6 +132,10 @@ const validateUpdateTeacher = (payload) => {
 
   if (provided.includes('status') && !STATUS_VALUES.includes(body.status)) {
     errors.push(`Status must be one of: ${STATUS_VALUES.join(', ')}.`);
+  }
+
+  if (provided.includes('access_level_id')) {
+    validateAccessLevelId(body.access_level_id, errors);
   }
 
   if (provided.includes('employee_number')) {
@@ -186,8 +204,8 @@ const validatePagination = (query) => {
 };
 
 module.exports = {
-  validateCreateTeacher,
-  validateUpdateTeacher,
+  validateCreateAdmin,
+  validateUpdateAdmin,
   validatePagination,
   normalizePhone,
   UPDATABLE_FIELDS,
