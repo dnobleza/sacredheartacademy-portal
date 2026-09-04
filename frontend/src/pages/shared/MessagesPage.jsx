@@ -18,7 +18,7 @@ import Typography from '@mui/material/Typography';
 import { ArrowLeft, Search, Send, SquarePen } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../utils/roles';
-import { fetchConversations, fetchRecipients, fetchThread, sendMessage } from '../../services/adminApi';
+import { fetchConversations, fetchRecipients, fetchThread, sendMessage } from '../../services/messagesApi';
 import { extractErrorMessage } from '../../services/api';
 import { AQUA_GRADIENT } from '../../theme';
 

@@ -17,8 +17,12 @@ import SubjectsPage from './pages/admin/SubjectsPage';
 import SchedulesPage from './pages/admin/SchedulesPage';
 import ClassesPage from './pages/admin/ClassesPage';
 import AnnouncementsPage from './pages/admin/AnnouncementsPage';
-import MessagesPage from './pages/admin/MessagesPage';
-import TeacherDashboard from './pages/dashboard/TeacherDashboard';
+import MessagesPage from './pages/shared/MessagesPage';
+import TeacherLayout from './layouts/TeacherLayout';
+import TeacherOverview from './pages/teacher/Overview';
+import ComingSoon from './pages/teacher/ComingSoon';
+import TeacherClasses from './pages/teacher/Classes';
+import TeacherProfile from './pages/teacher/Profile';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
 
@@ -48,7 +52,18 @@ function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
-        <Route path="/teacher" element={<TeacherDashboard />} />
+        <Route path="/teacher" element={<TeacherLayout />}>
+          <Route index element={<TeacherOverview />} />
+          {/* Built pages land here as they ship; until then the sidebar links
+              reach an honest placeholder rather than a 404. */}
+          <Route path="profile" element={<TeacherProfile />} />
+          <Route path="classes" element={<TeacherClasses />} />
+          <Route path="students" element={<ComingSoon title="Students" />} />
+          <Route path="attendance" element={<ComingSoon title="Attendance" />} />
+          <Route path="grades" element={<ComingSoon title="Grades" />} />
+          <Route path="assignments" element={<ComingSoon title="Assignments" />} />
+          <Route path="messages" element={<MessagesPage />} />
+        </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['student']} />}>

@@ -7,6 +7,15 @@ const {
   validateUpdateAnnouncement,
   validatePagination,
 } = require('../../validations/announcement-validation');
+const { notifyRoles } = require('../../utils/notifications');
+
+// announcements.target_role is plural ('students'), roles.name is singular
+// ('student'); 'all' means every role and needs no mapping.
+const TARGET_ROLE_TO_ROLE_NAME = {
+  students: 'student',
+  teachers: 'teacher',
+  parents: 'parent',
+};
 
 // CONCAT_WS never returns NULL, so an admin-less author (LEFT JOIN miss)
 // produces '' rather than NULL and COALESCE alone would not fall through to
@@ -74,6 +83,17 @@ const createAnnouncement = async (req, res) => {
     'INSERT INTO announcements (created_by, title, content, target_role, image_id) VALUES (?, ?, ?, ?, ?)',
     [createdBy, title, content, targetRole, imageId],
   );
+
+  // Everyone in the audience gets a bell entry; the author does not need one
+  // for their own post. Best effort — a failed notification must not undo a
+  // stored announcement.
+  await notifyRoles({
+    roles: targetRole === 'all' ? ['all'] : [TARGET_ROLE_TO_ROLE_NAME[targetRole]],
+    title,
+    message: content,
+    type: 'announcement',
+    excludeUserId: createdBy,
+  });
 
   return sendCreated(res, {
     id: result.insertId,
