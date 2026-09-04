@@ -10,6 +10,7 @@ import Grid from '@mui/material/Grid2';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import GradientButton from '../common/GradientButton';
+import { getResource } from '../../services/adminApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,6 +21,13 @@ const buildInitialValues = (fields, record) =>
     // The API returns dates as ISO timestamps; the date input wants yyyy-mm-dd.
     if (field.type === 'date' && raw) {
       return { ...values, [field.name]: String(raw).slice(0, 10) };
+    }
+
+    // MySQL TIME serialises as HH:MM:SS, which a native time input rejects at
+    // its default one-minute step — the field would open blank and silently
+    // lose the stored value on save.
+    if (field.type === 'time' && raw) {
+      return { ...values, [field.name]: String(raw).slice(0, 5) };
     }
 
     return { ...values, [field.name]: raw ?? '' };
@@ -77,6 +85,13 @@ function ResourceFormDialog({
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Read-only supplementary info (e.g. a class's enrolled students) that a
+  // resource may want to show alongside the form fields. Only resources that
+  // set `renderDetail` pay for the extra request, and only on edit — a new
+  // record has no id to fetch detail for.
+  const [detailRecord, setDetailRecord] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   useEffect(() => {
     if (open) {
       setValues(buildInitialValues(fields, record));
@@ -85,6 +100,35 @@ function ResourceFormDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, record]);
+
+  useEffect(() => {
+    if (!open || !record || !resource.renderDetail) {
+      setDetailRecord(null);
+      return;
+    }
+
+    let active = true;
+    setDetailLoading(true);
+
+    getResource(resource.key, record.id)
+      .then((data) => {
+        if (active) {
+          setDetailRecord(data);
+        }
+      })
+      .catch(() => {
+        // Leaving detailRecord null falls back to the empty-state message.
+      })
+      .finally(() => {
+        if (active) {
+          setDetailLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open, record, resource]);
 
   const handleChange = (name) => (event) => {
     setValues((current) => ({ ...current, [name]: event.target.value }));
@@ -157,7 +201,11 @@ function ResourceFormDialog({
                   disabled={submitting}
                   fullWidth
                   slotProps={
-                    field.type === 'date' ? { inputLabel: { shrink: true } } : undefined
+                    // A native date or time input paints its own placeholder, which
+                    // the floating label would otherwise sit on top of.
+                    field.type === 'date' || field.type === 'time'
+                      ? { inputLabel: { shrink: true } }
+                      : undefined
                   }
                 >
                   {field.type === 'select' &&
@@ -170,6 +218,8 @@ function ResourceFormDialog({
               </Grid>
             ))}
           </Grid>
+
+          {isEdit && resource.renderDetail && resource.renderDetail(detailRecord, detailLoading)}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2 }}>

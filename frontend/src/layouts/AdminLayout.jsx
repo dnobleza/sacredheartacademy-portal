@@ -18,6 +18,7 @@ import Menu from '@mui/material/Menu';
 import {
   Bell,
   BookOpen,
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   ChevronDown,
@@ -32,6 +33,7 @@ import {
   ShieldCheck,
   UserCircle,
   Users,
+  Users2,
   UsersRound,
 } from 'lucide-react';
 import Logo from '../components/common/Logo';
@@ -54,6 +56,8 @@ const ICONS = {
   Layers,
   DoorOpen,
   BookOpen,
+  CalendarClock,
+  Users2,
 };
 
 // Wide enough for the longest nav label ("Academic Management") plus its icon
