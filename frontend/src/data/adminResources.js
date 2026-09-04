@@ -179,6 +179,27 @@ export const ADMIN_RESOURCES = {
       { name: 'status', label: 'Status', type: 'select', options: ACADEMIC_YEAR_STATUS_OPTIONS },
     ],
   },
+
+  'grade-levels': {
+    key: 'grade-levels',
+    label: 'Grade Levels',
+    singular: 'Grade Level',
+    icon: 'Layers',
+    // Not a person and not a login account, same as academic years.
+    displayName: (row) => row.name,
+    searchHint: 'name',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'name', label: 'Name', minWidth: 190 },
+      { field: 'level_number', label: 'Order', minWidth: 100 },
+    ],
+    fields: [
+      { name: 'name', label: 'Name', required: true, maxLength: 50 },
+      { name: 'level_number', label: 'Order', type: 'number' },
+    ],
+  },
 };
 
 export const ADMIN_NAV = [
@@ -201,6 +222,9 @@ export const ADMIN_NAV = [
     key: 'academic',
     label: 'Academic Management',
     icon: 'CalendarDays',
-    children: [{ to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' }],
+    children: [
+      { to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' },
+      { to: '/admin/grade-levels', label: 'Grade Level', icon: 'Layers' },
+    ],
   },
 ];

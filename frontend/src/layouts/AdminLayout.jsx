@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
   GraduationCap,
+  Layers,
   LayoutDashboard,
   LogOut,
   Menu as MenuIcon,
@@ -48,6 +49,7 @@ const ICONS = {
   UsersRound,
   CalendarDays,
   CalendarRange,
+  Layers,
 };
 
 const EXPANDED_WIDTH = 248;
