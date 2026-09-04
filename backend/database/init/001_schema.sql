@@ -248,8 +248,11 @@ CREATE TABLE `sections` (
   `grade_level_id` int NOT NULL,
   `name` varchar(100) NOT NULL,
   `room` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `grade_level_id` (`grade_level_id`),
+  UNIQUE KEY `grade_level_name` (`grade_level_id`,`name`),
   CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`grade_level_id`) REFERENCES `grade_levels` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

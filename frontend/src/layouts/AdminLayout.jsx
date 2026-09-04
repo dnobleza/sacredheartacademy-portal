@@ -21,6 +21,7 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronRight,
+  DoorOpen,
   GraduationCap,
   Layers,
   LayoutDashboard,
@@ -50,6 +51,7 @@ const ICONS = {
   CalendarDays,
   CalendarRange,
   Layers,
+  DoorOpen,
 };
 
 // Wide enough for the longest nav label ("Academic Management") plus its icon

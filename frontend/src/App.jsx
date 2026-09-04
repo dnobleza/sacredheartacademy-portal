@@ -12,6 +12,7 @@ import ParentsPage from './pages/admin/ParentsPage';
 import AdminsPage from './pages/admin/AdminsPage';
 import AcademicYearsPage from './pages/admin/AcademicYearsPage';
 import GradeLevelsPage from './pages/admin/GradeLevelsPage';
+import SectionsPage from './pages/admin/SectionsPage';
 import TeacherDashboard from './pages/dashboard/TeacherDashboard';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
@@ -32,6 +33,7 @@ function App() {
           <Route path="admins" element={<AdminsPage />} />
           <Route path="academic-years" element={<AcademicYearsPage />} />
           <Route path="grade-levels" element={<GradeLevelsPage />} />
+          <Route path="sections" element={<SectionsPage />} />
         </Route>
       </Route>
 
