@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 import Menu from '@mui/material/Menu';
 import {
   Bell,
+  BookOpen,
   CalendarDays,
   CalendarRange,
   ChevronDown,
@@ -52,6 +53,7 @@ const ICONS = {
   CalendarRange,
   Layers,
   DoorOpen,
+  BookOpen,
 };
 
 // Wide enough for the longest nav label ("Academic Management") plus its icon

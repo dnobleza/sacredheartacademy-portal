@@ -71,6 +71,7 @@ app.use('/api/v1/admin/access-levels', require('./routes/admin/access-levels-rou
 app.use('/api/v1/admin/academic-years', require('./routes/admin/academic-years-routes'));
 app.use('/api/v1/admin/grade-levels', require('./routes/admin/grade-levels-routes'));
 app.use('/api/v1/admin/sections', require('./routes/admin/sections-routes'));
+app.use('/api/v1/admin/subjects', require('./routes/admin/subjects-routes'));
 
 app.use((req, res) => {
   sendError(res, HTTP_STATUS.NOT_FOUND, `Route not found: ${req.method} ${req.originalUrl}`);

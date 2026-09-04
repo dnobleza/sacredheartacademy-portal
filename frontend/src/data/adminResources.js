@@ -233,6 +233,31 @@ export const ADMIN_RESOURCES = {
       { name: 'room', label: 'Room', maxLength: 50 },
     ],
   },
+
+  subjects: {
+    key: 'subjects',
+    label: 'Subjects',
+    singular: 'Subject',
+    icon: 'BookOpen',
+    // Not a person and not a login account, same as the other academic
+    // resources. Codes are unique but names are not (two codes can share a
+    // name), so the code is what identifies a row in the delete confirmation.
+    displayName: (row) => row.name,
+    searchHint: 'code or name',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'code', label: 'Code', minWidth: 110 },
+      { field: 'name', label: 'Name', minWidth: 190 },
+      { field: 'description', label: 'Description', minWidth: 240 },
+    ],
+    fields: [
+      { name: 'code', label: 'Code', required: true, maxLength: 30 },
+      { name: 'name', label: 'Name', required: true, maxLength: 100 },
+      { name: 'description', label: 'Description', multiline: true, maxLength: 1000 },
+    ],
+  },
 };
 
 export const ADMIN_NAV = [
@@ -259,6 +284,7 @@ export const ADMIN_NAV = [
       { to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' },
       { to: '/admin/grade-levels', label: 'Grade Level', icon: 'Layers' },
       { to: '/admin/sections', label: 'Section', icon: 'DoorOpen' },
+      { to: '/admin/subjects', label: 'Subjects', icon: 'BookOpen' },
     ],
   },
 ];
