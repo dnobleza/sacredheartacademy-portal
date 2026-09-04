@@ -61,12 +61,14 @@ const createStudent = async (req, res) => {
   await connection.beginTransaction();
 
   const student = await connection
-    .execute('INSERT INTO users (role_id, email, password_hash, status) VALUES (?, ?, ?, ?)', [
-      STUDENT_ROLE_ID,
-      email,
-      passwordHash,
-      'active',
-    ])
+    .execute(
+      // users.access_level_id is NOT NULL. This role has exactly one access
+      // level, so it is resolved here rather than asked for: unlike admins,
+      // there is nothing to choose.
+      `INSERT INTO users (role_id, access_level_id, email, password_hash, status)
+       VALUES (?, (SELECT id FROM access_levels WHERE role_id = ?), ?, ?, ?)`,
+      [STUDENT_ROLE_ID, STUDENT_ROLE_ID, email, passwordHash, 'active'],
+    )
     .then(([userResult]) =>
       connection
         .execute(
