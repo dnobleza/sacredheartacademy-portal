@@ -10,6 +10,7 @@ import StudentsPage from './pages/admin/StudentsPage';
 import TeachersPage from './pages/admin/TeachersPage';
 import ParentsPage from './pages/admin/ParentsPage';
 import AdminsPage from './pages/admin/AdminsPage';
+import AcademicYearsPage from './pages/admin/AcademicYearsPage';
 import TeacherDashboard from './pages/dashboard/TeacherDashboard';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
@@ -28,6 +29,7 @@ function App() {
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="parents" element={<ParentsPage />} />
           <Route path="admins" element={<AdminsPage />} />
+          <Route path="academic-years" element={<AcademicYearsPage />} />
         </Route>
       </Route>
 

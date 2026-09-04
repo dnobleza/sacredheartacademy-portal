@@ -36,10 +36,43 @@ const STATUS_COLORS = {
   active: { bg: 'rgba(32,191,169,0.16)', fg: '#0F6F62' },
   inactive: { bg: 'rgba(100,119,117,0.16)', fg: '#4A5A58' },
   suspended: { bg: 'rgba(211,90,70,0.16)', fg: '#9C3B2A' },
+  upcoming: { bg: 'rgba(59,130,246,0.16)', fg: '#1D4ED8' },
+  completed: { bg: 'rgba(100,119,117,0.16)', fg: '#4A5A58' },
 };
 
-const formatDate = (value) =>
-  value ? new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—';
+// DATE columns arrive as 'YYYY-MM-DD'. Passing that straight to new Date()
+// parses it as UTC midnight, which renders as the previous day anywhere west
+// of Greenwich, so build those in local time instead. Full timestamps
+// (created_at and friends) still go through the normal parse.
+const formatDate = (value) => {
+  if (!value) {
+    return '—';
+  }
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+
+  return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+};
+
+/**
+ * How a single row is named in aria-labels and the delete confirmation. Person
+ * resources have first/last names; others (school years) do not, so a resource
+ * may supply its own `displayName` accessor.
+ */
+const rowDisplayName = (resource, row) => {
+  if (!row) {
+    return '';
+  }
+
+  if (resource.displayName) {
+    return resource.displayName(row) || '';
+  }
+
+  return [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || '';
+};
 
 const renderCell = (column, row) => {
   if (column.value) {
@@ -226,8 +259,8 @@ function ResourcePage({ resource }) {
       return '';
     }
 
-    return [deleting.first_name, deleting.last_name].filter(Boolean).join(' ') || deleting.email;
-  }, [deleting]);
+    return rowDisplayName(resource, deleting);
+  }, [deleting, resource]);
 
   return (
     <Box>
@@ -263,7 +296,9 @@ function ResourcePage({ resource }) {
           <TextField
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder={`Search ${resource.label.toLowerCase()} by name or email`}
+            // Not every resource has an email to search by, so a resource may
+            // name its own searchable fields.
+            placeholder={`Search ${resource.label.toLowerCase()} by ${resource.searchHint || 'name or email'}`}
             size="small"
             fullWidth
             slotProps={{
@@ -334,7 +369,7 @@ function ResourcePage({ resource }) {
                       <Tooltip title="Edit">
                         <IconButton
                           onClick={() => openEdit(row)}
-                          aria-label={`Edit ${row.first_name} ${row.last_name}`}
+                          aria-label={`Edit ${rowDisplayName(resource, row)}`}
                           size="small"
                           sx={{ color: 'primary.dark' }}
                         >
@@ -344,7 +379,7 @@ function ResourcePage({ resource }) {
                       <Tooltip title="Delete">
                         <IconButton
                           onClick={() => setDeleting(row)}
-                          aria-label={`Delete ${row.first_name} ${row.last_name}`}
+                          aria-label={`Delete ${rowDisplayName(resource, row)}`}
                           size="small"
                           sx={{ color: 'error.main' }}
                         >
@@ -386,7 +421,11 @@ function ResourcePage({ resource }) {
         open={Boolean(deleting)}
         busy={deleteBusy}
         title={`Delete ${resource.singular.toLowerCase()}?`}
-        message={`${deletingName} and their login account will be permanently removed. This cannot be undone.`}
+        message={
+          resource.deleteMessage
+            ? resource.deleteMessage(deletingName)
+            : `${deletingName} and their login account will be permanently removed. This cannot be undone.`
+        }
         onCancel={() => setDeleting(null)}
         onConfirm={handleDelete}
       />

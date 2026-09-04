@@ -132,7 +132,9 @@ function ResourceFormDialog({
             </Alert>
           )}
 
-          {!isEdit && (
+          {/* Only resources that create a login account get a temporary
+              password; a school year has no user behind it. */}
+          {!isEdit && resource.createsLoginAccount !== false && (
             <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
               A temporary password is generated on save. It is shown once — copy it before closing.
             </Alert>
