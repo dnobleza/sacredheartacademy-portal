@@ -17,6 +17,8 @@ import { useTheme } from '@mui/material/styles';
 import Menu from '@mui/material/Menu';
 import {
   Bell,
+  CalendarDays,
+  CalendarRange,
   ChevronDown,
   ChevronRight,
   GraduationCap,
@@ -44,6 +46,8 @@ const ICONS = {
   UserCircle,
   Users,
   UsersRound,
+  CalendarDays,
+  CalendarRange,
 };
 
 const EXPANDED_WIDTH = 248;

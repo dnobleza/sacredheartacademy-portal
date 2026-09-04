@@ -73,6 +73,12 @@ const statusField = {
   editOnly: true,
 };
 
+const ACADEMIC_YEAR_STATUS_OPTIONS = [
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
+];
+
 export const ADMIN_RESOURCES = {
   students: {
     key: 'students',
@@ -145,6 +151,34 @@ export const ADMIN_RESOURCES = {
     columns: [nameColumn, emailColumn, contactColumn, statusColumn],
     fields: [emailField, ...personFields, statusField],
   },
+
+  'academic-years': {
+    key: 'academic-years',
+    label: 'School Years',
+    singular: 'School Year',
+    icon: 'CalendarRange',
+    // Not a person and not a login account, so the table and the delete
+    // confirmation cannot fall back to first/last name or email.
+    displayName: (row) => row.name,
+    searchHint: 'name',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'name', label: 'Name', minWidth: 160 },
+      { field: 'start_date', label: 'Start date', type: 'date', minWidth: 130 },
+      { field: 'end_date', label: 'End date', type: 'date', minWidth: 130 },
+      { field: 'status', label: 'Status', type: 'status', minWidth: 110 },
+    ],
+    fields: [
+      { name: 'name', label: 'Name', required: true, maxLength: 20 },
+      { name: 'start_date', label: 'Start date', type: 'date', required: true },
+      { name: 'end_date', label: 'End date', type: 'date', required: true },
+      // Settable on create, not editOnly — a year is often created as
+      // "upcoming" rather than defaulting server-side.
+      { name: 'status', label: 'Status', type: 'select', options: ACADEMIC_YEAR_STATUS_OPTIONS },
+    ],
+  },
 };
 
 export const ADMIN_NAV = [
@@ -162,5 +196,11 @@ export const ADMIN_NAV = [
       // link keeps a lower-level admin from walking into a 403.
       { to: '/admin/admins', label: 'Admins', icon: 'ShieldCheck', minAccessLevel: 4 },
     ],
+  },
+  {
+    key: 'academic',
+    label: 'Academic Management',
+    icon: 'CalendarDays',
+    children: [{ to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' }],
   },
 ];
