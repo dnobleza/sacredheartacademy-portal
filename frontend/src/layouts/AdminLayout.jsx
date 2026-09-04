@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -83,8 +83,27 @@ const navLinkSx = (collapsed) => ({
   },
 });
 
+/**
+ * Drops nav entries above the viewer's access level. Convenience only — the
+ * backend guards those routes itself — so an unknown level hides the gated
+ * entries rather than revealing them.
+ */
+const visibleNav = (items, level) =>
+  items
+    .filter((item) => item.minAccessLevel === undefined || level >= item.minAccessLevel)
+    .map((item) =>
+      item.children ? { ...item, children: visibleNav(item.children, level) } : item,
+    )
+    .filter((item) => !item.children || item.children.length > 0);
+
 function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut }) {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const navItems = useMemo(
+    () => visibleNav(ADMIN_NAV, user?.access_level?.level ?? -1),
+    [user],
+  );
   const [openGroups, setOpenGroups] = useState(() => {
     const initial = {};
     ADMIN_NAV.forEach((item) => {
@@ -192,7 +211,7 @@ function SidebarContent({ collapsed, onNavigate, onToggle, onLogout, signingOut 
       <Divider sx={{ borderColor: 'rgba(22,59,56,0.08)' }} />
 
       <Stack component="nav" aria-label="Admin sections" spacing={0.5} sx={{ p: 1.5 }}>
-        {ADMIN_NAV.map((item) => {
+        {navItems.map((item) => {
           if (item.children) {
             const GroupIcon = ICONS[item.icon];
             const groupActive = isGroupActive(item);

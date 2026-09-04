@@ -158,11 +158,21 @@ composite foreign key on `(access_level_id, role_id)` so the database rejects
 a user whose level belongs to a different role. A teacher can never hold
 Super Admin.
 
-Authorization is still role-based: `authorizeRoles` matches on the role name.
-The level rides in the JWT as the `accessLevel` claim and in `/api/auth/me`,
-ready for a level guard later. Such a guard must treat a **missing** claim as
-a denial, not as level 0 — tokens issued before access levels shipped carry
-none.
+Authorization runs in two steps. `authorizeRoles` matches on the role name and
+decides which portal you are in; `requireMinAccessLevel` then decides how much
+of it you can use, reading the `accessLevel` claim carried in the JWT and
+returned by `/api/auth/me`.
+
+Current rule: managing admin accounts is Super Admin only. `/admin/admins` and
+`/admin/access-levels` require Lvl-4; `/admin/students`, `/admin/teachers` and
+`/admin/parents` are open to any admin level. The one exception is
+`PUT /admin/admins/:id`, which every admin reaches to edit their own profile —
+`updateAdmin` requires Super Admin for anyone else's record, and no admin may
+change their own status or access level at all.
+
+`requireMinAccessLevel` treats a **missing** claim as a denial, never as level
+0: tokens issued before access levels shipped carry none, and reading a missing
+claim as the lowest tier would grant access instead of refusing it.
 
 Roles must be stored in the database and must not be hardcoded throughout the application.
 
