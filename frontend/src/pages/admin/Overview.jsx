@@ -1,72 +1,85 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid2';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { BarChart } from '@mui/x-charts/BarChart';
 import {
   ArrowRight,
-  BookOpen,
-  CalendarClock,
   CalendarRange,
-  DoorOpen,
   GraduationCap,
-  Layers,
-  Megaphone,
   Presentation,
   ShieldCheck,
   Users,
-  Users2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchDashboard } from '../../services/adminApi';
 import { extractErrorMessage } from '../../services/api';
-import { AQUA_GRADIENT } from '../../theme';
+import AnnouncementPost, { formatDate } from '../../components/common/AnnouncementPost';
+import { AQUA, AQUA_GRADIENT } from '../../theme';
 
-// Order mirrors ADMIN_NAV's grouping (users, academic, schedule, class),
-// with the counts endpoint's key on the left and the matching route on the
-// right — academic-years and grade-levels are hyphenated in App.jsx.
+// People only. The academic and scheduling resources keep their own pages,
+// reached from the sidebar, so they no longer take up dashboard space.
+// peopleKey names the dashboard field holding that card's recent registrations.
 const CARDS = [
-  { key: 'students', label: 'Students', to: '/admin/students', Icon: GraduationCap },
-  { key: 'teachers', label: 'Teachers', to: '/admin/teachers', Icon: Presentation },
-  { key: 'parents', label: 'Parents', to: '/admin/parents', Icon: Users },
-  { key: 'admins', label: 'Admins', to: '/admin/admins', Icon: ShieldCheck },
-  { key: 'academic_years', label: 'School Years', to: '/admin/academic-years', Icon: CalendarRange },
-  { key: 'grade_levels', label: 'Grade Levels', to: '/admin/grade-levels', Icon: Layers },
-  { key: 'sections', label: 'Sections', to: '/admin/sections', Icon: DoorOpen },
-  { key: 'subjects', label: 'Subjects', to: '/admin/subjects', Icon: BookOpen },
-  { key: 'schedules', label: 'Schedules', to: '/admin/schedules', Icon: CalendarClock },
-  { key: 'classes', label: 'Classes', to: '/admin/classes', Icon: Users2 },
-  { key: 'announcements', label: 'Announcements', to: '/admin/announcements', Icon: Megaphone },
+  { key: 'students', label: 'Students', to: '/admin/students', Icon: GraduationCap, peopleKey: 'recent_students' },
+  { key: 'teachers', label: 'Teachers', to: '/admin/teachers', Icon: Presentation, peopleKey: 'recent_teachers' },
+  { key: 'parents', label: 'Parents', to: '/admin/parents', Icon: Users, peopleKey: 'recent_parents' },
+  { key: 'admins', label: 'Admins', to: '/admin/admins', Icon: ShieldCheck, peopleKey: 'recent_admins' },
 ];
 
-const AUDIENCE_LABELS = {
-  all: 'Everyone',
-  students: 'Students',
-  teachers: 'Teachers',
-  parents: 'Parents',
-};
+const fullName = (person) => [person.first_name, person.last_name].filter(Boolean).join(' ').trim();
 
-const formatDate = (value) => {
-  if (!value) {
-    return '—';
-  }
+// Profile photos live behind the authenticated /images/:id endpoint and have
+// to be fetched as blobs, so the dashboard uses initials rather than firing a
+// request per person.
+const initials = (person) =>
+  [person.first_name, person.last_name]
+    .filter(Boolean)
+    .map((part) => part.trim()[0])
+    .join('')
+    .toUpperCase() || '?';
 
-  // Plain YYYY-MM-DD school-year boundaries — parsing as UTC midnight would
-  // render a day early anywhere west of Greenwich, so build in local time.
-  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
-  const date = dateOnly
-    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
-    : new Date(value);
+function RecentPeople({ people }) {
+  return (
+    <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(22,59,56,0.08)' }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700, mb: 1.5 }}>
+        Recently registered
+      </Typography>
 
-  return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
-};
+      {people.length === 0 ? (
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          No one registered yet.
+        </Typography>
+      ) : (
+        <Stack spacing={1.25}>
+          {people.map((person) => (
+            <Stack key={person.id} direction="row" alignItems="center" spacing={1.5}>
+              <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', fontWeight: 700, background: AQUA_GRADIENT }}>
+                {initials(person)}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                  {fullName(person) || person.email}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {formatDate(person.created_at)}
+                </Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
 
-function CountCard({ label, to, Icon, value, loading }) {
+function CountCard({ label, to, Icon, value, loading, people }) {
   return (
     <Paper
       component={RouterLink}
@@ -121,6 +134,8 @@ function CountCard({ label, to, Icon, value, loading }) {
           <ArrowRight size={19} />
         </Box>
       </Stack>
+
+      {people ? <RecentPeople people={people} /> : null}
     </Paper>
   );
 }
@@ -153,6 +168,7 @@ function Overview() {
   const counts = dashboard?.counts || null;
   const activeYear = dashboard?.active_academic_year;
   const announcements = dashboard?.recent_announcements || [];
+  const enrollees = dashboard?.enrollees_by_grade_level || [];
 
   return (
     <Box>
@@ -225,12 +241,67 @@ function Overview() {
       ) : null}
 
       <Grid container spacing={3}>
-        {CARDS.map(({ key, label, to, Icon }) => (
-          <Grid key={key} size={{ xs: 12, sm: 6, lg: 4 }}>
-            <CountCard label={label} to={to} Icon={Icon} value={counts?.[key]} loading={counts === null && !error} />
+        {CARDS.map(({ key, label, to, Icon, peopleKey }) => (
+          <Grid key={key} size={{ xs: 12, sm: 6, lg: 3 }}>
+            <CountCard
+              label={label}
+              to={to}
+              Icon={Icon}
+              value={counts?.[key]}
+              loading={counts === null && !error}
+              people={peopleKey && dashboard ? dashboard[peopleKey] || [] : undefined}
+            />
           </Grid>
         ))}
       </Grid>
+
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Enrollees per grade level
+        </Typography>
+
+        <Paper
+          elevation={0}
+          sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', backgroundColor: '#FFFFFF', p: 3 }}
+        >
+          {dashboard === null && !error ? (
+            <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
+              <CircularProgress size={26} aria-label="Loading enrollment chart" />
+            </Box>
+          ) : !activeYear ? (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Enrolment counts follow the active school year. Set one from{' '}
+              <RouterLink to="/admin/academic-years" style={{ color: 'inherit', fontWeight: 700 }}>
+                School Years
+              </RouterLink>
+              .
+            </Typography>
+          ) : enrollees.length === 0 ? (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              No active enrollments yet.
+            </Typography>
+          ) : (
+            <BarChart
+              height={320}
+              xAxis={[
+                {
+                  scaleType: 'band',
+                  data: enrollees.map((row) => row.name),
+                  tickLabelStyle: { fontSize: 12, angle: -25, textAnchor: 'end' },
+                },
+              ]}
+              series={[
+                {
+                  data: enrollees.map((row) => Number(row.total)),
+                  label: `Active enrollees · ${activeYear.name}`,
+                  color: AQUA.dark,
+                },
+              ]}
+              margin={{ bottom: 70 }}
+            />
+          )}
+        </Paper>
+      </Box>
 
       <Box sx={{ mt: 4 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -245,55 +316,24 @@ function Overview() {
           </Typography>
         </Stack>
 
-        <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', backgroundColor: '#FFFFFF' }}>
-          {counts === null && !error ? (
-            <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
-              <CircularProgress size={26} aria-label="Loading announcements" />
-            </Box>
-          ) : announcements.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography sx={{ color: 'text.secondary' }}>No announcements posted yet.</Typography>
-            </Box>
-          ) : (
-            <Stack divider={<Box sx={{ borderBottom: '1px solid rgba(22,59,56,0.08)' }} />}>
-              {announcements.map((announcement) => (
-                <Box
-                  key={announcement.id}
-                  component={RouterLink}
-                  to="/admin/announcements"
-                  sx={{
-                    display: 'block',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    p: 2.5,
-                    '&:hover': { backgroundColor: 'background.paper' },
-                  }}
-                >
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={1.5}
-                    alignItems={{ sm: 'center' }}
-                    justifyContent="space-between"
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 700 }} noWrap>
-                        {announcement.title}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
-                        {announcement.author_name} · {formatDate(announcement.created_at)}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={AUDIENCE_LABELS[announcement.target_role] || announcement.target_role}
-                      size="small"
-                      sx={{ backgroundColor: 'primary.light', color: 'primary.dark', fontWeight: 700, flexShrink: 0 }}
-                    />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          )}
-        </Paper>
+        {counts === null && !error ? (
+          <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
+            <CircularProgress size={26} aria-label="Loading announcements" />
+          </Box>
+        ) : announcements.length === 0 ? (
+          <Paper
+            elevation={0}
+            sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', backgroundColor: '#FFFFFF', py: 6, textAlign: 'center' }}
+          >
+            <Typography sx={{ color: 'text.secondary' }}>No announcements posted yet.</Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={3} sx={{ maxWidth: 680 }}>
+            {announcements.map((announcement) => (
+              <AnnouncementPost key={announcement.id} announcement={announcement} manageTo="/admin/announcements" />
+            ))}
+          </Stack>
+        )}
       </Box>
     </Box>
   );
