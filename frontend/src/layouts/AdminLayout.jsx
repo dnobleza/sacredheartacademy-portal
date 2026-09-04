@@ -28,7 +28,9 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu as MenuIcon,
+  MessageSquare,
   Presentation,
   ShieldCheck,
   UserCircle,
@@ -58,6 +60,8 @@ const ICONS = {
   BookOpen,
   CalendarClock,
   Users2,
+  Megaphone,
+  MessageSquare,
 };
 
 // Wide enough for the longest nav label ("Academic Management") plus its icon

@@ -55,19 +55,37 @@ export const fetchAccessLevels = async () => {
 };
 
 /**
- * No stats endpoint exists, so totals come from each list endpoint's
- * pagination block with the smallest possible page.
+ * Aggregate counts, the active school year (or null, when none is marked
+ * active), and the most recent announcements — everything the Overview page
+ * needs in one round trip.
  */
-export const fetchCounts = async () => {
-  const resources = ['students', 'teachers', 'parents'];
+export const fetchDashboard = async () => {
+  const response = await api.get('/admin/dashboard');
+  return response.data.data;
+};
 
-  const results = await Promise.all(
-    resources.map((resource) =>
-      listResource(resource, { page: 1, limit: 1 })
-        .then((data) => [resource, data.pagination.total])
-        .catch(() => [resource, null]),
-    ),
-  );
+/**
+ * Messaging endpoints, all under /messages rather than /admin — any
+ * authenticated user can message, not just admins. They return a bare array
+ * in `data`, not the { items, pagination } shape listResource expects.
+ */
+export const fetchConversations = async () => {
+  const response = await api.get('/messages/conversations');
+  return response.data.data;
+};
 
-  return Object.fromEntries(results);
+export const fetchThread = async (userId) => {
+  const response = await api.get(`/messages/with/${userId}`);
+  return response.data.data;
+};
+
+export const sendMessage = async ({ receiver_id, message, subject }) => {
+  const response = await api.post('/messages', { receiver_id, message, subject });
+  return response.data.data;
+};
+
+export const fetchRecipients = async (search = '') => {
+  const params = search ? { search } : {};
+  const response = await api.get('/messages/recipients', { params });
+  return response.data.data;
 };

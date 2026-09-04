@@ -95,6 +95,13 @@ const ACADEMIC_YEAR_STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ];
 
+const ANNOUNCEMENT_AUDIENCE_OPTIONS = [
+  { value: 'all', label: 'Everyone' },
+  { value: 'students', label: 'Students' },
+  { value: 'teachers', label: 'Teachers' },
+  { value: 'parents', label: 'Parents' },
+];
+
 export const ADMIN_RESOURCES = {
   students: {
     key: 'students',
@@ -391,6 +398,47 @@ export const ADMIN_RESOURCES = {
     renderDetail: (detailRecord, loading) =>
       createElement(ClassStudentsDetail, { detailRecord, loading }),
   },
+
+  announcements: {
+    key: 'announcements',
+    label: 'Announcements',
+    singular: 'Announcement',
+    icon: 'Megaphone',
+    // Not a person and not a login account, same as the other content
+    // resources.
+    displayName: (row) => row.title,
+    searchHint: 'title or content',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'title', label: 'Title', minWidth: 220 },
+      // Same labels the form and the dashboard use, so one audience is not
+      // called "Everyone" in one place and "all" in another.
+      {
+        field: 'target_role',
+        label: 'Audience',
+        minWidth: 130,
+        value: (row) =>
+          ANNOUNCEMENT_AUDIENCE_OPTIONS.find((option) => option.value === row.target_role)?.label ||
+          row.target_role,
+      },
+      { field: 'author_name', label: 'Author', minWidth: 160 },
+      { field: 'created_at', label: 'Posted', type: 'date', minWidth: 150 },
+    ],
+    // author_name and created_at are server-owned (taken from the auth token
+    // and the row's timestamp) — columns only, never form fields.
+    fields: [
+      { name: 'title', label: 'Title', required: true, maxLength: 200 },
+      {
+        name: 'target_role',
+        label: 'Audience',
+        type: 'select',
+        options: ANNOUNCEMENT_AUDIENCE_OPTIONS,
+      },
+      { name: 'content', label: 'Content', multiline: true, required: true, maxLength: 5000 },
+    ],
+  },
 };
 
 export const ADMIN_NAV = [
@@ -431,5 +479,14 @@ export const ADMIN_NAV = [
     label: 'Class Management',
     icon: 'Users2',
     children: [{ to: '/admin/classes', label: 'Class', icon: 'Users2' }],
+  },
+  {
+    key: 'communication',
+    label: 'Communication',
+    icon: 'MessageSquare',
+    children: [
+      { to: '/admin/announcements', label: 'Announcements', icon: 'Megaphone' },
+      { to: '/admin/messages', label: 'Messages', icon: 'MessageSquare' },
+    ],
   },
 ];
