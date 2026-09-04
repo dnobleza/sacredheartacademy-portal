@@ -128,43 +128,71 @@ function ResourcePage({ resource }) {
 
   const [optionSources, setOptionSources] = useState({});
 
-  // Only the Admins resource needs a loaded option list today, so the fetch is
-  // driven off the field config rather than the resource key.
-  const needsAccessLevels = resource.fields.some(
-    (field) => field.optionsSource === 'accessLevels',
+  // Registry of remote option loaders, keyed by the `optionsSource` name a
+  // field declares. A resource's fields name whichever sources they need;
+  // this effect loads exactly those, so adding a new picker only means
+  // adding an entry here rather than touching the fetch logic below.
+  const optionLoaders = useMemo(
+    () => ({
+      accessLevels: () =>
+        fetchAccessLevels().then((levels) =>
+          // Numeric values, so an existing record's numeric access_level_id
+          // matches an option and the edit form opens on the right one.
+          levels.map((level) => ({
+            value: level.id,
+            label: `${level.code} — ${level.name}`,
+          })),
+        ),
+      gradeLevels: () =>
+        listResource('grade-levels', { page: 1, limit: 100 }).then((data) =>
+          // Numeric values, for the same reason as accessLevels above.
+          data.items.map((row) => ({ value: row.id, label: row.name })),
+        ),
+    }),
+    [],
+  );
+
+  const neededSources = useMemo(
+    () => [
+      ...new Set(
+        resource.fields.map((field) => field.optionsSource).filter(Boolean),
+      ),
+    ],
+    [resource.fields],
   );
 
   useEffect(() => {
-    if (!needsAccessLevels) {
+    if (neededSources.length === 0) {
       return;
     }
 
     let active = true;
 
-    fetchAccessLevels()
-      .then((levels) => {
-        if (!active) {
-          return;
-        }
+    neededSources.forEach((source) => {
+      const loader = optionLoaders[source];
 
-        setOptionSources({
-          // Numeric values, so an existing record's numeric access_level_id
-          // matches an option and the edit form opens on the right one.
-          accessLevels: levels.map((level) => ({
-            value: level.id,
-            label: `${level.code} — ${level.name}`,
-          })),
+      if (!loader) {
+        return;
+      }
+
+      loader()
+        .then((options) => {
+          if (!active) {
+            return;
+          }
+
+          setOptionSources((prev) => ({ ...prev, [source]: options }));
+        })
+        .catch(() => {
+          // A failed load leaves the select empty; the server still rejects
+          // a create without a valid id, so nothing slips through.
         });
-      })
-      .catch(() => {
-        // A failed load leaves the select empty; the server still rejects a
-        // create without a valid level, so nothing slips through.
-      });
+    });
 
     return () => {
       active = false;
     };
-  }, [needsAccessLevels]);
+  }, [neededSources, optionLoaders]);
 
   // Debounced so typing does not fire a request per keystroke.
   useEffect(() => {

@@ -200,6 +200,39 @@ export const ADMIN_RESOURCES = {
       { name: 'level_number', label: 'Order', type: 'number' },
     ],
   },
+
+  sections: {
+    key: 'sections',
+    label: 'Sections',
+    singular: 'Section',
+    icon: 'DoorOpen',
+    // Not a person and not a login account, same as academic years.
+    // Section names repeat across grade levels ("Section A" exists under every
+    // one), so the grade level is what tells two rows apart in the row action
+    // labels and the delete confirmation.
+    displayName: (row) =>
+      row.grade_level_name ? `${row.name} — ${row.grade_level_name}` : row.name,
+    searchHint: 'name, room or grade level',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. This cannot be undone.`,
+    columns: [
+      { field: 'name', label: 'Name', minWidth: 160 },
+      { field: 'grade_level_name', label: 'Grade level', minWidth: 160 },
+      { field: 'room', label: 'Room', minWidth: 120 },
+    ],
+    fields: [
+      { name: 'name', label: 'Name', required: true, maxLength: 100 },
+      {
+        name: 'grade_level_id',
+        label: 'Grade level',
+        type: 'select',
+        required: true,
+        optionsSource: 'gradeLevels',
+      },
+      { name: 'room', label: 'Room', maxLength: 50 },
+    ],
+  },
 };
 
 export const ADMIN_NAV = [
@@ -225,6 +258,7 @@ export const ADMIN_NAV = [
     children: [
       { to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' },
       { to: '/admin/grade-levels', label: 'Grade Level', icon: 'Layers' },
+      { to: '/admin/sections', label: 'Section', icon: 'DoorOpen' },
     ],
   },
 ];
