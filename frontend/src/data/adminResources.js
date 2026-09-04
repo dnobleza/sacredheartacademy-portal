@@ -52,6 +52,9 @@ const personFields = [
   { name: 'gender', label: 'Gender', type: 'select', options: GENDER_OPTIONS },
   { name: 'contact_number', label: 'Mobile number', maxLength: 20 },
   { name: 'address', label: 'Address', multiline: true, maxLength: 255 },
+  // Stores images.id, not the file. ImageField uploads on selection and hands
+  // back the id, so submitting the form only writes the reference.
+  { name: 'photo_id', label: 'Photo', type: 'image' },
 ];
 
 const emailField = {
@@ -437,6 +440,7 @@ export const ADMIN_RESOURCES = {
         options: ANNOUNCEMENT_AUDIENCE_OPTIONS,
       },
       { name: 'content', label: 'Content', multiline: true, required: true, maxLength: 5000 },
+      { name: 'image_id', label: 'Image', type: 'image' },
     ],
   },
 };

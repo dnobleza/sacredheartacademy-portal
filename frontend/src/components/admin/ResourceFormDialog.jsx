@@ -10,6 +10,7 @@ import Grid from '@mui/material/Grid2';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import GradientButton from '../common/GradientButton';
+import ImageField from './ImageField';
 import { getResource } from '../../services/adminApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -148,6 +149,12 @@ function ResourceFormDialog({
     // Send trimmed values; drop blanks so the backend keeps existing data
     // rather than overwriting a column with an empty string.
     const payload = fields.reduce((body, field) => {
+      // An image id is sent even when empty: the server reads null as "clear
+      // it", so dropping the blank would make removing a picture impossible.
+      if (field.type === 'image') {
+        return { ...body, [field.name]: values[field.name] ?? null };
+      }
+
       const value = String(values[field.name] ?? '').trim();
 
       if (!value && !field.required) {
@@ -187,6 +194,16 @@ function ResourceFormDialog({
           <Grid container spacing={2.5}>
             {fields.map((field) => (
               <Grid key={field.name} size={{ xs: 12, sm: field.multiline ? 12 : 6 }}>
+                {field.type === 'image' ? (
+                  <ImageField
+                    label={field.label}
+                    value={values[field.name] ?? null}
+                    onChange={(imageId) =>
+                      setValues((current) => ({ ...current, [field.name]: imageId }))
+                    }
+                    disabled={submitting}
+                  />
+                ) : (
                 <TextField
                   select={field.type === 'select'}
                   type={field.type === 'select' ? 'text' : field.type || 'text'}
@@ -215,6 +232,7 @@ function ResourceFormDialog({
                       </MenuItem>
                     ))}
                 </TextField>
+                )}
               </Grid>
             ))}
           </Grid>
