@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import Overview from './pages/admin/Overview';
 import Profile from './pages/admin/Profile';
+import AdmissionsPage from './pages/admin/AdmissionsPage';
 import StudentsPage from './pages/admin/StudentsPage';
 import TeachersPage from './pages/admin/TeachersPage';
 import ParentsPage from './pages/admin/ParentsPage';
@@ -36,6 +37,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Overview />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="admissions" element={<AdmissionsPage />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="parents" element={<ParentsPage />} />

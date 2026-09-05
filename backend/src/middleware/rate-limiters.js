@@ -50,8 +50,20 @@ const accountCreationLimiter = rateLimit({
   handler: buildHandler('Too many accounts created from this address. Please try again later.'),
 });
 
+// The public admission form is the only unauthenticated write in the app, so
+// the ceiling is low: a family submits once, or a handful of times for
+// siblings, never dozens.
+const admissionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: buildHandler('Too many applications from this address. Please try again later.'),
+});
+
 module.exports = {
   generalLimiter,
+  admissionLimiter,
   loginLimiter,
   refreshLimiter,
   accountCreationLimiter,

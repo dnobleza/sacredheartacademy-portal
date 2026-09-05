@@ -5,6 +5,7 @@ const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
 const { UPLOAD_DIR } = require('../../middleware/upload');
+const { streamImage } = require('../../utils/stream-image');
 
 const IMAGE_SELECT_FIELDS = `
   id,
@@ -39,10 +40,9 @@ const createImage = async (req, res) => {
 };
 
 /**
- * Streams the stored file. Content-Type comes from the STORED mime_type, not
- * from anything the client sends on this request, and the response is always
- * inline — this endpoint is the only path to a file, so there is no separate
- * "download" concern to distinguish it from.
+ * Streams the stored file. The headers and the missing-file handling live in
+ * utils/stream-image.js, shared with the public announcement image path so the
+ * two cannot drift apart.
  */
 const getImageById = async (req, res) => {
   const imageId = req.params.id;
@@ -56,30 +56,7 @@ const getImageById = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Image not found.');
   }
 
-  const filePath = path.join(UPLOAD_DIR, rows[0].filename);
-
-  // A row can outlive its file (a failed write, a manual cleanup on disk).
-  // Treat that the same as "row doesn't exist" rather than letting the
-  // stream error turn into a 500.
-  if (!fs.existsSync(filePath)) {
-    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Image not found.');
-  }
-
-  res.setHeader('Content-Type', rows[0].mime_type);
-  res.setHeader('Content-Disposition', 'inline');
-
-  const stream = fs.createReadStream(filePath);
-
-  stream.on('error', (error) => {
-    logger.error(`Failed to stream image ${imageId}: ${error.message}`);
-    if (!res.headersSent) {
-      sendError(res, HTTP_STATUS.NOT_FOUND, 'Image not found.');
-    } else {
-      res.destroy();
-    }
-  });
-
-  return stream.pipe(res);
+  return streamImage(res, rows[0], imageId);
 };
 
 const deleteImage = async (req, res) => {

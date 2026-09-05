@@ -7,15 +7,28 @@ import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { Menu as MenuIcon, Search, X } from 'lucide-react';
+import { ChevronDown, Menu as MenuIcon, Search, X } from 'lucide-react';
 import GradientButton from '../common/GradientButton';
+import AdmissionFormDialog from './AdmissionFormDialog';
 import Logo from '../common/Logo';
 import { glass } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { roleHome } from '../../utils/roles';
 import { navLinks, school } from '../../data/landing';
+
+// A dropdown child is one of three things: a route (`to`), an in-page anchor
+// (`href`), or an action that runs on click and navigates nowhere.
+const childComponent = (child) => {
+  if (child.to) {
+    return RouterLink;
+  }
+
+  return child.href ? 'a' : 'div';
+};
 
 function Navbar() {
   const { isAuthenticated, user } = useAuth();
@@ -24,9 +37,12 @@ function Navbar() {
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(navLinks[0].id);
+  const [menu, setMenu] = useState({ anchorEl: null, id: null });
+  const [admissionFormOpen, setAdmissionFormOpen] = useState(false);
 
   useEffect(() => {
     const sections = navLinks
+      .filter((link) => !link.to)
       .map((link) => document.getElementById(link.id))
       .filter(Boolean);
 
@@ -52,6 +68,13 @@ function Navbar() {
   }, []);
 
   const closeDrawer = () => setOpen(false);
+  const closeMenu = () => setMenu({ anchorEl: null, id: null });
+
+  // The only action a nav child can carry today. Kept as a lookup rather than
+  // an inline check so a second one is a data change, not a component change.
+  const NAV_ACTIONS = { 'admission-form': () => setAdmissionFormOpen(true) };
+
+  const runAction = (name) => NAV_ACTIONS[name]?.();
 
   return (
     <Box
@@ -93,6 +116,10 @@ function Navbar() {
                 fontSize: { xs: '0.9375rem', md: '1.0625rem' },
                 letterSpacing: '-0.01em',
                 whiteSpace: 'nowrap',
+                // Typography's default body line-height (1.5) pads the text box
+                // well above and below the glyphs, so centering it against the
+                // tightly-bound 42px logo left it looking a few pixels low.
+                lineHeight: 1,
               }}
             >
               {school.name}
@@ -102,37 +129,114 @@ function Navbar() {
           <Stack
             direction="row"
             spacing={0.5}
-            sx={{ ml: 'auto', display: { xs: 'none', lg: 'flex' } }}
+            // The brand and actions Stacks on either side both center their
+            // children explicitly; this one relied on the flex default
+            // (stretch), which is what made it look out of line with them.
+            alignItems="center"
+            sx={{ ml: 'auto', minWidth: 0, display: { xs: 'none', lg: 'flex' } }}
           >
-            {navLinks.map((link) => (
-              <Box
-                key={link.id}
-                component="a"
-                href={`#${link.id}`}
-                aria-current={active === link.id ? 'true' : undefined}
-                sx={{
-                  px: 1.75,
-                  py: 1,
-                  borderRadius: 999,
-                  fontSize: '0.9375rem',
-                  fontWeight: active === link.id ? 700 : 500,
-                  textDecoration: 'none',
-                  color: active === link.id ? 'primary.dark' : 'text.secondary',
-                  backgroundColor: active === link.id ? 'primary.light' : 'transparent',
-                  transition: 'color 200ms ease, background-color 200ms ease',
-                  '&:hover': { color: 'primary.dark', backgroundColor: 'primary.light' },
-                }}
-              >
-                {link.label}
-              </Box>
-            ))}
+            {navLinks.map((link) => {
+              const linkSx = {
+                px: 1.75,
+                py: 1,
+                borderRadius: 999,
+                fontSize: '0.9375rem',
+                fontWeight: active === link.id ? 700 : 500,
+                textDecoration: 'none',
+                color: active === link.id ? 'primary.dark' : 'text.secondary',
+                backgroundColor: active === link.id ? 'primary.light' : 'transparent',
+                transition: 'color 200ms ease, background-color 200ms ease',
+                '&:hover': { color: 'primary.dark', backgroundColor: 'primary.light' },
+              };
+
+              if (link.children) {
+                const menuId = `nav-menu-${link.id}`;
+                const menuOpen = menu.id === link.id;
+
+                return (
+                  <Box key={link.id}>
+                    <Box
+                      component="button"
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      aria-controls={menuOpen ? menuId : undefined}
+                      onClick={(event) => setMenu({ anchorEl: event.currentTarget, id: link.id })}
+                      sx={{
+                        ...linkSx,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        border: 'none',
+                        cursor: 'pointer',
+                        // A native <button> carries its own font, line-height and
+                        // margin from the UA stylesheet, so it sat a couple of
+                        // pixels off from the sibling <a> links despite identical
+                        // padding. Reset it to inherit the surrounding text box.
+                        margin: 0,
+                        font: 'inherit',
+                        lineHeight: 'inherit',
+                        appearance: 'none',
+                        // Firefox adds its own inner border/padding to buttons
+                        // that padding alone can't override.
+                        '&::-moz-focus-inner': { border: 0, padding: 0 },
+                      }}
+                    >
+                      {link.label}
+                      <ChevronDown size={15} />
+                    </Box>
+
+                    <Menu
+                      id={menuId}
+                      anchorEl={menu.anchorEl}
+                      open={menuOpen}
+                      onClose={closeMenu}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                      slotProps={{ paper: { sx: { mt: 1, borderRadius: 2.5, minWidth: 200 } } }}
+                    >
+                      {link.children.map((child) => (
+                        <MenuItem
+                          key={child.to || child.href || child.action}
+                          component={childComponent(child)}
+                          to={child.to}
+                          href={child.href}
+                          onClick={() => {
+                            closeMenu();
+                            if (child.action) {
+                              runAction(child.action);
+                            }
+                          }}
+                          sx={{ fontWeight: 600, color: 'text.secondary' }}
+                        >
+                          {child.label}
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </Box>
+                );
+              }
+
+              return (
+                <Box
+                  key={link.id}
+                  component={link.to ? RouterLink : 'a'}
+                  to={link.to}
+                  href={link.to ? undefined : `#${link.id}`}
+                  aria-current={active === link.id ? 'true' : undefined}
+                  sx={linkSx}
+                >
+                  {link.label}
+                </Box>
+              );
+            })}
           </Stack>
 
           <Stack
             direction="row"
             spacing={1}
             alignItems="center"
-            sx={{ ml: { xs: 'auto', lg: 2 } }}
+            sx={{ ml: { xs: 'auto', lg: 2 }, flexShrink: 0 }}
           >
             <IconButton
               aria-label="Search the site"
@@ -153,6 +257,8 @@ function Navbar() {
                 py: { xs: 0.9, md: 1.1 },
                 fontSize: { xs: '0.875rem', md: '0.9375rem' },
                 display: { xs: 'none', sm: 'inline-flex' },
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               {portalLabel}
@@ -187,23 +293,48 @@ function Navbar() {
 
         <List>
           {navLinks.map((link) => (
-            <ListItemButton
-              key={link.id}
-              component="a"
-              href={`#${link.id}`}
-              onClick={closeDrawer}
-              sx={{ borderRadius: 2 }}
-            >
-              <ListItemText
-                primary={link.label}
-                primaryTypographyProps={{
-                  sx: {
-                    fontWeight: active === link.id ? 700 : 500,
-                    color: active === link.id ? 'primary.dark' : 'text.primary',
-                  },
-                }}
-              />
-            </ListItemButton>
+            <Box key={link.id}>
+              <ListItemButton
+                component={link.to ? RouterLink : 'a'}
+                to={link.to}
+                href={link.to ? undefined : `#${link.id}`}
+                onClick={closeDrawer}
+                sx={{ borderRadius: 2 }}
+              >
+                <ListItemText
+                  primary={link.label}
+                  primaryTypographyProps={{
+                    sx: {
+                      fontWeight: active === link.id ? 700 : 500,
+                      color: active === link.id ? 'primary.dark' : 'text.primary',
+                    },
+                  }}
+                />
+              </ListItemButton>
+
+              {/* The drawer has room to show the children outright, so there is
+                  no second tap to expand them. */}
+              {link.children?.map((child) => (
+                <ListItemButton
+                  key={child.to || child.href || child.action}
+                  component={childComponent(child)}
+                  to={child.to}
+                  href={child.href}
+                  onClick={() => {
+                    closeDrawer();
+                    if (child.action) {
+                      runAction(child.action);
+                    }
+                  }}
+                  sx={{ borderRadius: 2, pl: 4 }}
+                >
+                  <ListItemText
+                    primary={child.label}
+                    primaryTypographyProps={{ sx: { fontSize: '0.9375rem', color: 'text.secondary' } }}
+                  />
+                </ListItemButton>
+              ))}
+            </Box>
           ))}
         </List>
 
@@ -217,6 +348,11 @@ function Navbar() {
           {portalLabel}
         </GradientButton>
       </Drawer>
+
+      <AdmissionFormDialog
+        open={admissionFormOpen}
+        onClose={() => setAdmissionFormOpen(false)}
+      />
     </Box>
   );
 }
