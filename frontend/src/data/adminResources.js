@@ -453,6 +453,7 @@ export const ADMIN_NAV = [
     label: 'Users Management',
     icon: 'UsersRound',
     children: [
+      { to: '/admin/admissions', label: 'Admissions', icon: 'ClipboardList' },
       { to: '/admin/students', label: 'Students', icon: 'GraduationCap' },
       { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
       { to: '/admin/parents', label: 'Parents', icon: 'Users' },

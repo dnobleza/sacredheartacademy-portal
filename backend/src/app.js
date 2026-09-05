@@ -75,10 +75,14 @@ app.use('/api/v1/admin/subjects', require('./routes/admin/subjects-routes'));
 app.use('/api/v1/admin/schedules', require('./routes/admin/schedules-routes'));
 app.use('/api/v1/admin/classes', require('./routes/admin/classes-routes'));
 app.use('/api/v1/admin/announcements', require('./routes/admin/announcements-routes'));
+app.use('/api/v1/admin/admissions', require('./routes/admin/admissions-routes'));
 app.use('/api/v1/admin/dashboard', require('./routes/admin/dashboard-routes'));
 app.use('/api/v1/teacher/dashboard', require('./routes/teachers/dashboard-routes'));
 app.use('/api/v1/teacher/classes', require('./routes/teachers/classes-routes'));
 app.use('/api/v1/teacher/profile', require('./routes/teachers/profile-routes'));
+// Public: no token required, see routes/public/admissions-routes.js.
+app.use('/api/v1/admissions', require('./routes/public/admissions-routes'));
+app.use('/api/v1/announcements', require('./routes/public/announcements-routes'));
 app.use('/api/v1/messages', require('./routes/shared/messages-routes'));
 app.use('/api/v1/notifications', require('./routes/shared/notifications-routes'));
 app.use('/api/v1/images', require('./routes/shared/images-routes'));

@@ -23,7 +23,17 @@ export const navLinks = [
   { label: 'Home', id: 'home' },
   { label: 'About', id: 'about' },
   { label: 'Academics', id: 'academics' },
-  { label: 'Admissions', id: 'admissions' },
+  // `children` turns the entry into a dropdown. A child carries `href` for an
+  // in-page anchor, `to` for a route, or `action` to run something — the form
+  // opens as a dialog so a visitor never leaves the page they were reading.
+  {
+    label: 'Admissions',
+    id: 'admissions',
+    children: [
+      { label: 'How to apply', href: '#admissions' },
+      { label: 'Application form', action: 'admission-form' },
+    ],
+  },
   { label: 'Student Life', id: 'student-life' },
   { label: 'News', id: 'news' },
   { label: 'Contact', id: 'contact' },
