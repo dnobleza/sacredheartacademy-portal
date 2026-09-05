@@ -490,7 +490,7 @@ export const ADMIN_NAV = [
     icon: 'MessageSquare',
     children: [
       { to: '/admin/announcements', label: 'Announcements', icon: 'Megaphone' },
-      { to: '/admin/messages', label: 'Messages', icon: 'MessageSquare' },
+      { to: '/admin/messages', label: 'Messages', icon: 'MessageSquare', badge: 'messages' },
     ],
   },
 ];
