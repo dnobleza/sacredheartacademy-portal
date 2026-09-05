@@ -2,7 +2,10 @@ const pool = require('../../config/database');
 const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
-const { validateCreateMessage } = require('../../validations/message-validation');
+const {
+  validateCreateMessage,
+  validateUpdateMessage,
+} = require('../../validations/message-validation');
 const { notifyUser } = require('../../utils/notifications');
 
 // SECURITY: this lives in shared/ (not admin/) because every role messages
@@ -99,7 +102,7 @@ const getThreadWithUser = async (req, res) => {
   );
 
   const [rows] = await pool.execute(
-    `SELECT id, sender_id, receiver_id, message, subject, is_read, created_at
+    `SELECT id, sender_id, receiver_id, message, subject, is_read, edited_at, created_at
      FROM messages
      WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
      ORDER BY created_at ASC`,
@@ -140,7 +143,7 @@ const createMessage = async (req, res) => {
   );
 
   const [rows] = await pool.execute(
-    'SELECT id, sender_id, receiver_id, message, subject, is_read, created_at FROM messages WHERE id = ?',
+    'SELECT id, sender_id, receiver_id, message, subject, is_read, edited_at, created_at FROM messages WHERE id = ?',
     [result.insertId],
   );
 
@@ -161,6 +164,97 @@ const createMessage = async (req, res) => {
   logger.info(`Message ${result.insertId} sent by user ${senderId} to user ${receiverId}`);
 
   return sendCreated(res, rows[0]);
+};
+
+/**
+ * Loads a message for a write, refusing anyone but its sender. Ownership is
+ * checked against req.user.userId, never a value from the request: a message
+ * the caller did not send must not be editable or deletable even if they can
+ * read it as the recipient.
+ */
+const findOwnMessage = async (messageId, callerId) => {
+  const [rows] = await pool.execute(
+    'SELECT id, sender_id, receiver_id FROM messages WHERE id = ?',
+    [messageId],
+  );
+
+  if (rows.length === 0) {
+    return { message: null, owned: false };
+  }
+
+  return { message: rows[0], owned: rows[0].sender_id === callerId };
+};
+
+const parseMessageId = (value) => {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const updateMessage = async (req, res) => {
+  const callerId = req.user.userId;
+  const messageId = parseMessageId(req.params.id);
+
+  if (!messageId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid message id.');
+  }
+
+  const validationErrors = validateUpdateMessage(req.body);
+
+  if (validationErrors.length > 0) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
+  }
+
+  const { message, owned } = await findOwnMessage(messageId, callerId);
+
+  if (!message) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Message not found.');
+  }
+
+  if (!owned) {
+    return sendError(res, HTTP_STATUS.FORBIDDEN, 'You can only edit your own messages.');
+  }
+
+  // edited_at is set explicitly rather than by ON UPDATE, so marking a message
+  // read never makes it look edited.
+  await pool.execute('UPDATE messages SET message = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?', [
+    req.body.message.trim(),
+    messageId,
+  ]);
+
+  const [rows] = await pool.execute(
+    'SELECT id, sender_id, receiver_id, message, subject, is_read, edited_at, created_at FROM messages WHERE id = ?',
+    [messageId],
+  );
+
+  logger.info(`Message ${messageId} edited by user ${callerId}`);
+
+  return sendOk(res, rows[0]);
+};
+
+const deleteMessage = async (req, res) => {
+  const callerId = req.user.userId;
+  const messageId = parseMessageId(req.params.id);
+
+  if (!messageId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid message id.');
+  }
+
+  const { message, owned } = await findOwnMessage(messageId, callerId);
+
+  if (!message) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Message not found.');
+  }
+
+  if (!owned) {
+    return sendError(res, HTTP_STATUS.FORBIDDEN, 'You can only delete your own messages.');
+  }
+
+  // The row is removed outright, so it disappears for both participants.
+  await pool.execute('DELETE FROM messages WHERE id = ?', [messageId]);
+
+  logger.info(`Message ${messageId} deleted by user ${callerId}`);
+
+  return sendOk(res, { id: messageId, deleted: true });
 };
 
 /**
@@ -210,6 +304,8 @@ module.exports = {
   listConversations,
   getThreadWithUser,
   createMessage,
+  updateMessage,
+  deleteMessage,
   listRecipients,
   getUnreadCount,
 };

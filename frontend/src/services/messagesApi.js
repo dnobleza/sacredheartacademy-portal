@@ -30,3 +30,13 @@ export const fetchUnreadMessageCount = async () => {
   const response = await api.get('/messages/unread-count');
   return response.data.data.unread_count;
 };
+
+export const editMessage = async (messageId, message) => {
+  const response = await api.put(`/messages/${messageId}`, { message });
+  return response.data.data;
+};
+
+export const deleteMessage = async (messageId) => {
+  const response = await api.delete(`/messages/${messageId}`);
+  return response.data.data;
+};
