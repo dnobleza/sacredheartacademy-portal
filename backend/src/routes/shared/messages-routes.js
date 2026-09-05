@@ -15,5 +15,7 @@ router.get('/recipients', asyncHandler(messagesController.listRecipients));
 router.get('/unread-count', asyncHandler(messagesController.getUnreadCount));
 router.get('/with/:userId', asyncHandler(messagesController.getThreadWithUser));
 router.post('/', asyncHandler(messagesController.createMessage));
+router.put('/:id', asyncHandler(messagesController.updateMessage));
+router.delete('/:id', asyncHandler(messagesController.deleteMessage));
 
 module.exports = router;

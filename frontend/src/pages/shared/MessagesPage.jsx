@@ -4,7 +4,12 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContentText from '@mui/material/DialogContentText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
@@ -15,10 +20,17 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { ArrowLeft, Search, Send, SquarePen } from 'lucide-react';
+import { ArrowLeft, Check, MoreVertical, Pencil, Search, Send, SquarePen, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../utils/roles';
-import { fetchConversations, fetchRecipients, fetchThread, sendMessage } from '../../services/messagesApi';
+import {
+  deleteMessage,
+  editMessage,
+  fetchConversations,
+  fetchRecipients,
+  fetchThread,
+  sendMessage,
+} from '../../services/messagesApi';
 import { extractErrorMessage } from '../../services/api';
 import { AQUA_GRADIENT } from '../../theme';
 
@@ -150,13 +162,67 @@ function ConversationList({ conversations, loading, error, activeId, onSelect, o
  * Thread pane — messages plus the pinned composer. `onBack` only renders on
  * small screens, where the list and thread cannot share the viewport.
  */
-function ThreadPane({ peer, messages, loading, error, currentUserId, onBack, onSend, sending }) {
+function ThreadPane({
+  peer,
+  messages,
+  loading,
+  error,
+  currentUserId,
+  onBack,
+  onSend,
+  onEdit,
+  onDelete,
+  sending,
+}) {
   const [draft, setDraft] = useState('');
+  const [menu, setMenu] = useState({ anchorEl: null, message: null });
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
+
+  const closeMenu = () => setMenu({ anchorEl: null, message: null });
+
+  const startEdit = (message) => {
+    setEditingId(message.id);
+    setEditDraft(message.message);
+    closeMenu();
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft('');
+  };
+
+  const saveEdit = async (message) => {
+    const trimmed = editDraft.trim();
+
+    // An unchanged or emptied box just closes; the server would reject an
+    // empty body anyway.
+    if (!trimmed || trimmed === message.message) {
+      cancelEdit();
+      return;
+    }
+
+    const ok = await onEdit(message.id, trimmed);
+
+    if (ok) {
+      cancelEdit();
+    }
+  };
+
+  const confirmAndDelete = async () => {
+    const target = confirmDelete;
+    setConfirmDelete(null);
+
+    if (target) {
+      await onDelete(target.id);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -253,8 +319,31 @@ function ThreadPane({ peer, messages, loading, error, currentUserId, onBack, onS
           {messages.map((message) => {
             const mine = message.sender_id === currentUserId;
 
+            const editing = editingId === message.id;
+
             return (
-              <Box key={message.id} sx={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+              <Box
+                key={message.id}
+                sx={{
+                  display: 'flex',
+                  justifyContent: mine ? 'flex-end' : 'flex-start',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                {/* Only your own bubbles carry the menu. The server refuses an
+                    edit or delete from anyone but the sender regardless. */}
+                {mine && !editing && (
+                  <IconButton
+                    size="small"
+                    aria-label="Message actions"
+                    onClick={(event) => setMenu({ anchorEl: event.currentTarget, message })}
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <MoreVertical size={16} />
+                  </IconButton>
+                )}
+
                 <Box
                   sx={{
                     maxWidth: '78%',
@@ -265,13 +354,51 @@ function ThreadPane({ peer, messages, loading, error, currentUserId, onBack, onS
                     color: mine ? '#fff' : 'text.primary',
                   }}
                 >
-                  <Typography sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.message}</Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ display: 'block', mt: 0.5, opacity: 0.8, textAlign: mine ? 'right' : 'left' }}
-                  >
-                    {formatTimestamp(message.created_at)}
-                  </Typography>
+                  {editing ? (
+                    <Stack spacing={1}>
+                      <TextField
+                        value={editDraft}
+                        onChange={(event) => setEditDraft(event.target.value)}
+                        size="small"
+                        fullWidth
+                        multiline
+                        maxRows={6}
+                        autoFocus
+                        sx={{ backgroundColor: '#fff', borderRadius: 1, minWidth: 220 }}
+                      />
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          onClick={cancelEdit}
+                          aria-label="Cancel edit"
+                          sx={{ color: 'inherit' }}
+                        >
+                          <X size={16} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => saveEdit(message)}
+                          aria-label="Save edit"
+                          sx={{ color: 'inherit' }}
+                        >
+                          <Check size={16} />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                  ) : (
+                    <>
+                      <Typography sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {message.message}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ display: 'block', mt: 0.5, opacity: 0.8, textAlign: mine ? 'right' : 'left' }}
+                      >
+                        {formatTimestamp(message.created_at)}
+                        {message.edited_at ? ' · edited' : ''}
+                      </Typography>
+                    </>
+                  )}
                 </Box>
               </Box>
             );
@@ -279,6 +406,38 @@ function ThreadPane({ peer, messages, loading, error, currentUserId, onBack, onS
           <div ref={bottomRef} />
         </Stack>
       </Box>
+
+      <Menu anchorEl={menu.anchorEl} open={Boolean(menu.anchorEl)} onClose={closeMenu}>
+        <MenuItem onClick={() => startEdit(menu.message)} sx={{ gap: 1.25 }}>
+          <Pencil size={16} /> Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setConfirmDelete(menu.message);
+            closeMenu();
+          }}
+          sx={{ gap: 1.25, color: 'error.main' }}
+        >
+          <Trash2 size={16} /> Delete
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
+        <DialogTitle>Delete message?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This removes the message for both of you. It cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button onClick={confirmAndDelete} color="error" sx={{ textTransform: 'none', fontWeight: 700 }}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Box
         component="form"
@@ -510,6 +669,28 @@ function MessagesPage() {
     }
   };
 
+  const handleEdit = async (messageId, text) => {
+    try {
+      await editMessage(messageId, text);
+      await Promise.all([loadThread(activePeer.user_id), loadConversations()]);
+      return true;
+    } catch (error) {
+      setThreadError(extractErrorMessage(error, 'Could not edit that message.'));
+      return false;
+    }
+  };
+
+  const handleDelete = async (messageId) => {
+    try {
+      await deleteMessage(messageId);
+      await Promise.all([loadThread(activePeer.user_id), loadConversations()]);
+      return true;
+    } catch (error) {
+      setThreadError(extractErrorMessage(error, 'Could not delete that message.'));
+      return false;
+    }
+  };
+
   const currentUserId = user?.id;
 
   // On mobile, the thread pane replaces the list once a conversation is
@@ -552,6 +733,8 @@ function MessagesPage() {
             currentUserId={currentUserId}
             onBack={() => setActivePeer(null)}
             onSend={handleSend}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             sending={sending}
           />
         </Box>

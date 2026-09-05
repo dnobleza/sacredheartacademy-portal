@@ -26,8 +26,27 @@ const validateCreateMessage = (payload) => {
   return errors;
 };
 
+/**
+ * An edit only ever replaces the body. subject and receiver_id are not
+ * editable: re-addressing a delivered message would move it into a thread the
+ * recipient never took part in.
+ */
+const validateUpdateMessage = (payload) => {
+  const errors = [];
+  const { message } = payload || {};
+
+  if (!isProvided(message) || typeof message !== 'string' || !message.trim()) {
+    errors.push('Message is required.');
+  } else if (message.length > MESSAGE_MAX_LENGTH) {
+    errors.push(`Message must be ${MESSAGE_MAX_LENGTH} characters or fewer.`);
+  }
+
+  return errors;
+};
+
 module.exports = {
   validateCreateMessage,
+  validateUpdateMessage,
   MESSAGE_MAX_LENGTH,
   SUBJECT_MAX_LENGTH,
 };
