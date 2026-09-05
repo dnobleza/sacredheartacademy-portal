@@ -26,11 +26,7 @@ const validateCreateMessage = (payload) => {
   return errors;
 };
 
-/**
- * An edit only ever replaces the body. subject and receiver_id are not
- * editable: re-addressing a delivered message would move it into a thread the
- * recipient never took part in.
- */
+
 const validateUpdateMessage = (payload) => {
   const errors = [];
   const { message } = payload || {};

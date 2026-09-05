@@ -8,21 +8,21 @@ const {
 } = require('../../validations/message-validation');
 const { notifyUser } = require('../../utils/notifications');
 
-// SECURITY: this lives in shared/ (not admin/) because every role messages
-// through the same table once their portals exist — there is no per-role
-// variant. The one property that must never break: a caller can only ever
-// read a thread they are a participant in. Every query below is constrained
-// with req.user.userId on BOTH sides of the OR, and :userId from the URL is
-// treated strictly as "the other participant", never as "whose inbox to
-// show". There is no endpoint that accepts an arbitrary pair of user ids.
 
-// A user's display name lives on exactly one of these four profile tables
-// depending on role; COALESCE picks whichever is populated and falls back to
-// the email for accounts with no profile row yet.
-// Each CONCAT_WS is wrapped in NULLIF because CONCAT_WS never returns NULL:
-// on a LEFT JOIN miss it yields '', which COALESCE treats as a hit. Without
-// this the admins branch always wins and every teacher, student and parent
-// comes back with an empty name.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const NAME_EXPR = `
   COALESCE(
     NULLIF(CONCAT_WS(' ', admins.first_name, admins.last_name), ''),
@@ -41,12 +41,7 @@ const PROFILE_JOINS = `
   LEFT JOIN parents ON parents.user_id = users.id
 `;
 
-/**
- * One row per person the caller has ever exchanged a message with, most
- * recent activity first. The last message, its timestamp, and the unread
- * count are pulled with correlated subqueries so the whole thing stays a
- * single round trip instead of one query per conversation.
- */
+
 const listConversations = async (req, res) => {
   const callerId = req.user.userId;
 
@@ -79,12 +74,7 @@ const listConversations = async (req, res) => {
   return sendOk(res, rows.map((row) => ({ ...row, unread_count: Number(row.unread_count) })));
 };
 
-/**
- * The full thread between the caller and :userId, oldest first. :userId is
- * always the OTHER participant — the WHERE clause below pins the caller's id
- * on both branches of the OR, so this can never surface someone else's
- * conversation regardless of what :userId is.
- */
+
 const getThreadWithUser = async (req, res) => {
   const callerId = req.user.userId;
   const otherUserId = Number(req.params.userId);
@@ -93,8 +83,8 @@ const getThreadWithUser = async (req, res) => {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'A valid userId is required.');
   }
 
-  // Only messages the other user sent TO the caller are marked read — never
-  // the caller's own outgoing messages, never a thread involving anyone else.
+  
+  
   await pool.execute(
     `UPDATE messages SET is_read = 1
      WHERE sender_id = ? AND receiver_id = ? AND is_read = 0`,
@@ -152,8 +142,8 @@ const createMessage = async (req, res) => {
     [senderId],
   );
 
-  // Best effort: the message is already stored, so a failed bell entry must
-  // not turn a delivered message into an error.
+  
+  
   await notifyUser({
     userId: receiverId,
     title: `New message from ${senderRows[0] ? senderRows[0].name : 'a user'}`,
@@ -166,12 +156,7 @@ const createMessage = async (req, res) => {
   return sendCreated(res, rows[0]);
 };
 
-/**
- * Loads a message for a write, refusing anyone but its sender. Ownership is
- * checked against req.user.userId, never a value from the request: a message
- * the caller did not send must not be editable or deletable even if they can
- * read it as the recipient.
- */
+
 const findOwnMessage = async (messageId, callerId) => {
   const [rows] = await pool.execute(
     'SELECT id, sender_id, receiver_id FROM messages WHERE id = ?',
@@ -214,8 +199,8 @@ const updateMessage = async (req, res) => {
     return sendError(res, HTTP_STATUS.FORBIDDEN, 'You can only edit your own messages.');
   }
 
-  // edited_at is set explicitly rather than by ON UPDATE, so marking a message
-  // read never makes it look edited.
+  
+  
   await pool.execute('UPDATE messages SET message = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?', [
     req.body.message.trim(),
     messageId,
@@ -249,7 +234,7 @@ const deleteMessage = async (req, res) => {
     return sendError(res, HTTP_STATUS.FORBIDDEN, 'You can only delete your own messages.');
   }
 
-  // The row is removed outright, so it disappears for both participants.
+  
   await pool.execute('DELETE FROM messages WHERE id = ?', [messageId]);
 
   logger.info(`Message ${messageId} deleted by user ${callerId}`);
@@ -257,11 +242,7 @@ const deleteMessage = async (req, res) => {
   return sendOk(res, { id: messageId, deleted: true });
 };
 
-/**
- * Total unread messages addressed to the caller, for the sidebar badge. Kept
- * separate from listConversations so the nav can poll it cheaply without
- * pulling every thread's last message.
- */
+
 const getUnreadCount = async (req, res) => {
   const [[{ unread_count: unreadCount }]] = await pool.execute(
     'SELECT COUNT(*) AS unread_count FROM messages WHERE receiver_id = ? AND is_read = 0',
@@ -271,11 +252,7 @@ const getUnreadCount = async (req, res) => {
   return sendOk(res, { unread_count: Number(unreadCount) });
 };
 
-/**
- * Active users the caller can start a new conversation with. Uses HAVING
- * (rather than WHERE) to filter on the computed `name` alias — MySQL does not
- * allow SELECT aliases in WHERE, and there is no aggregation here to avoid.
- */
+
 const listRecipients = async (req, res) => {
   const callerId = req.user.userId;
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';

@@ -9,17 +9,17 @@ const {
 } = require('../../validations/announcement-validation');
 const { notifyRoles } = require('../../utils/notifications');
 
-// announcements.target_role is plural ('students'), roles.name is singular
-// ('student'); 'all' means every role and needs no mapping.
+
+
 const TARGET_ROLE_TO_ROLE_NAME = {
   students: 'student',
   teachers: 'teacher',
   parents: 'parent',
 };
 
-// CONCAT_WS never returns NULL, so an admin-less author (LEFT JOIN miss)
-// produces '' rather than NULL and COALESCE alone would not fall through to
-// the email. NULLIF turns that '' back into NULL so COALESCE can do its job.
+
+
+
 const AUTHOR_NAME_EXPR = `COALESCE(
   NULLIF(CONCAT_WS(' ', admins.first_name, admins.last_name), ''),
   users.email
@@ -37,9 +37,9 @@ const ANNOUNCEMENT_SELECT_FIELDS = `
   announcements.updated_at
 `;
 
-// Mirrors findGradeLevel in sections-controller.js: validate the foreign key
-// up front so a bad image_id surfaces as a 400, not a 500 from the FK
-// constraint.
+
+
+
 const findImage = async (imageId) => {
   const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
 
@@ -74,9 +74,9 @@ const createAnnouncement = async (req, res) => {
     }
   }
 
-  // created_by always comes from the authenticated session, never the
-  // request body — otherwise an admin could post an announcement under
-  // another user's name.
+  
+  
+  
   const createdBy = req.user.userId;
 
   const [result] = await pool.execute(
@@ -84,9 +84,9 @@ const createAnnouncement = async (req, res) => {
     [createdBy, title, content, targetRole, imageId],
   );
 
-  // Everyone in the audience gets a bell entry; the author does not need one
-  // for their own post. Best effort — a failed notification must not undo a
-  // stored announcement.
+  
+  
+  
   await notifyRoles({
     roles: targetRole === 'all' ? ['all'] : [TARGET_ROLE_TO_ROLE_NAME[targetRole]],
     title,
@@ -199,8 +199,8 @@ const updateAnnouncement = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Announcement not found.');
   }
 
-  // Explicit null clears the picture; any other provided value must resolve
-  // to a real image row.
+  
+  
   if (
     Object.prototype.hasOwnProperty.call(req.body, 'image_id') &&
     req.body.image_id !== null
@@ -212,8 +212,8 @@ const updateAnnouncement = async (req, res) => {
     }
   }
 
-  // created_by is deliberately excluded from UPDATE_FIELDS: authorship of an
-  // existing announcement cannot be reassigned through this endpoint.
+  
+  
   const update = buildAssignments(req.body, UPDATE_FIELDS);
 
   await pool.execute(`UPDATE announcements SET ${update.clause} WHERE id = ?`, [
@@ -245,7 +245,7 @@ const deleteAnnouncement = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Announcement not found.');
   }
 
-  // Nothing else references announcements, so this is a plain delete.
+  
   await pool.execute('DELETE FROM announcements WHERE id = ?', [announcementId]);
 
   logger.info(`Announcement ${announcementId} deleted by admin ${req.user.userId}`);

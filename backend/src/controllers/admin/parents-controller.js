@@ -38,8 +38,8 @@ const PARENT_SELECT_FIELDS = `
   users.status
 `;
 
-// Mirrors findGradeLevel in sections-controller.js: validate the foreign key
-// up front so a bad photo_id is a 400, not a 500 from the FK constraint.
+
+
 const findImage = async (imageId) => {
   const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
 
@@ -77,9 +77,9 @@ const createParent = async (req, res) => {
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
-  // users.access_level_id is NOT NULL. This role has exactly one access level,
-  // so it is resolved rather than asked for: unlike admins, there is nothing to
-  // choose. The helper throws if that ever stops being true.
+  
+  
+  
   const accessLevelId = await findSoleAccessLevelId(PARENT_ROLE_ID);
 
   const connection = await pool.getConnection();
@@ -218,7 +218,7 @@ const getParentById = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Parent not found.');
   }
 
-  // A parent may guard several students, so the children come with the profile.
+  
   const children = await findChildrenByParentId(parentId);
 
   return sendOk(res, { ...rows[0], children });
@@ -291,8 +291,8 @@ const updateParent = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Parent not found.');
   }
 
-  // Explicit null clears the photo; any other provided value must resolve to
-  // a real image row.
+  
+  
   if (Object.prototype.hasOwnProperty.call(req.body, 'photo_id') && req.body.photo_id !== null) {
     const image = await findImage(Number(req.body.photo_id));
 
@@ -359,8 +359,8 @@ const deleteParent = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Parent not found.');
   }
 
-  // student_parents cascades, so a delete would silently drop the links.
-  // Refuse instead and make the admin unlink the children deliberately.
+  
+  
   const [links] = await pool.execute(
     'SELECT COUNT(*) AS total FROM student_parents WHERE parent_id = ?',
     [parentId],

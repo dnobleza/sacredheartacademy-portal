@@ -8,15 +8,15 @@ const {
   validatePagination,
 } = require('../../validations/advisory-class-validation');
 
-// NOTE ON NAMING: the table is `advisory_classes`, but everywhere in the API
-// surface — the URL segment (/admin/classes), the response key (`classes`)
-// and the frontend resource key — this is shortened to just "classes". That
-// is intentional, not a typo: "advisory class" is what the section+adviser
-// pairing is called academically, and the shorter name is what the UI shows.
 
-// student_count is a correlated subquery rather than a JOIN + GROUP BY:
-// a JOIN would multiply the advisory_classes row once per enrolled student,
-// which would break the ORDER BY / LIMIT pagination below.
+
+
+
+
+
+
+
+
 const CLASS_SELECT_FIELDS = `
   advisory_classes.id,
   advisory_classes.section_id,
@@ -49,9 +49,9 @@ const CLASS_ORDER = `
   ORDER BY academic_years.name ASC, grade_levels.level_number ASC, sections.name ASC
 `;
 
-// Mirrors findGradeLevel in sections-controller.js: validate each foreign
-// key up front so a bad id surfaces as a 400 from us, not a 500 from the
-// FK constraint.
+
+
+
 const findSection = async (sectionId) => {
   const [rows] = await pool.execute('SELECT id FROM sections WHERE id = ?', [sectionId]);
   return rows[0] || null;
@@ -150,8 +150,8 @@ const listAdvisoryClasses = async (req, res) => {
     [...searchParams, limit, offset],
   );
 
-  // Response key `classes` mirrors the /admin/classes URL segment; see the
-  // naming note at the top of this file.
+  
+  
   return sendOk(res, {
     classes: rows,
     pagination: {
@@ -163,9 +163,9 @@ const listAdvisoryClasses = async (req, res) => {
   });
 };
 
-// Students are not editable on an advisory class; they come from enrollment.
-// This list is derived and read-only, returned alongside the class on the
-// detail view only (not on the list endpoint, to keep that query cheap).
+
+
+
 const findEnrolledStudents = (sectionId, academicYearId) =>
   pool
     .execute(
@@ -289,7 +289,7 @@ const updateAdvisoryClassHandler = (req, res, next) =>
     return next(error);
   });
 
-// Nothing references advisory_classes, so a delete is unconditional.
+
 const deleteAdvisoryClass = async (req, res) => {
   const classId = req.params.id;
 

@@ -80,7 +80,7 @@ app.use('/api/v1/admin/dashboard', require('./routes/admin/dashboard-routes'));
 app.use('/api/v1/teacher/dashboard', require('./routes/teachers/dashboard-routes'));
 app.use('/api/v1/teacher/classes', require('./routes/teachers/classes-routes'));
 app.use('/api/v1/teacher/profile', require('./routes/teachers/profile-routes'));
-// Public: no token required, see routes/public/admissions-routes.js.
+
 app.use('/api/v1/admissions', require('./routes/public/admissions-routes'));
 app.use('/api/v1/announcements', require('./routes/public/announcements-routes'));
 app.use('/api/v1/messages', require('./routes/shared/messages-routes'));

@@ -4,9 +4,9 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const GENDER_VALUES = ['male', 'female', 'other'];
 
-// Statuses an admin may set directly. 'accepted' and 'enrolled' are excluded on
-// purpose: accepting creates a student account, which only the accept endpoint
-// may do, and 'enrolled' follows from an enrolment, not from a dropdown.
+
+
+
 const REVIEW_STATUS_VALUES = ['reviewing', 'rejected'];
 
 const normalizePhone = (value) =>
@@ -64,7 +64,7 @@ const validatePhoneField = ({ value, label, required, errors }) => {
   }
 };
 
-// Mirrors validateBirthDate in student-validation.js.
+
 const validateBirthDate = (birthDate, errors) => {
   if (!isProvided(birthDate)) {
     return;
@@ -88,11 +88,7 @@ const validateBirthDate = (birthDate, errors) => {
   }
 };
 
-/**
- * A public, unauthenticated payload, so every field is checked here and none of
- * status, reference_number, reviewed_by or student_id is read from the body at
- * all — the controller sets those itself.
- */
+
 const validateCreateApplication = (payload) => {
   const errors = [];
   const body = payload || {};

@@ -17,8 +17,8 @@ const SUBJECT_SELECT_FIELDS = `
   updated_at
 `;
 
-// Codes are identifiers, so they are stored uppercase. Without this, 'eng' and
-// 'ENG' would pass UNIQUE(code) as two separate subjects.
+
+
 const normalizeCode = (code) => code.trim().toUpperCase();
 
 const createSubject = async (req, res) => {

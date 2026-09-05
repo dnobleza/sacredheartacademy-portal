@@ -38,8 +38,8 @@ const validateBirthDate = (birthDate, errors) => {
   }
 };
 
-// Only checks the shape. Whether the id exists needs a database read, so the
-// controller does that part (findImage).
+
+
 const validateImageId = (imageId, errors) => {
   if (!isProvided(imageId)) {
     return;

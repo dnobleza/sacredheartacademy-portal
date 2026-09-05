@@ -76,8 +76,8 @@ const validateUpdateAcademicYear = (payload) => {
     errors.push('A valid end date is required, in YYYY-MM-DD format.');
   }
 
-  // The full start/end comparison, including cases where only one of the two
-  // is being changed, needs the existing row and is handled in the controller.
+  
+  
   if (
     provided.includes('start_date') &&
     provided.includes('end_date') &&

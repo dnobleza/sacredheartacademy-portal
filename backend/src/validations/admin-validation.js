@@ -8,8 +8,8 @@ const normalizePhone = (value) =>
 
 const isProvided = (value) => value !== undefined && value !== null && value !== '';
 
-// Only checks the shape. Whether the id exists and belongs to the admin role
-// needs a database read, so the controller does that part.
+
+
 const validateAccessLevelId = (accessLevelId, errors) => {
   const parsed = Number(accessLevelId);
 
@@ -28,8 +28,8 @@ const validatePhone = (contactNumber, errors) => {
   }
 };
 
-// Only checks the shape. Whether the id exists needs a database read, so the
-// controller does that part (findImage), same as access_level_id.
+
+
 const validateImageId = (imageId, errors) => {
   if (!isProvided(imageId)) {
     return;

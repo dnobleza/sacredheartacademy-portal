@@ -21,15 +21,11 @@ const generateTemporaryPassword = () => {
   return `${sanitized.slice(0, PASSWORD_LENGTH)}!A1`;
 };
 
-// Every query built on ADMIN_SELECT_FIELDS needs this join alongside the users
-// join, since the level lives on users.
+
+
 const ACCESS_LEVEL_JOIN = 'JOIN access_levels ON access_levels.id = users.access_level_id';
 
-/**
- * Resolves an access level and confirms it belongs to the admin role. The
- * composite foreign key on users would reject a mismatch anyway, but catching
- * it here returns a 400 the form can show instead of a 500.
- */
+
 const findAdminAccessLevel = async (accessLevelId) => {
   const [rows] = await pool.execute(
     'SELECT id FROM access_levels WHERE id = ? AND role_id = ?',
@@ -39,8 +35,8 @@ const findAdminAccessLevel = async (accessLevelId) => {
   return rows[0] || null;
 };
 
-// Same pattern as findAdminAccessLevel: validate the foreign key up front so
-// a bad photo_id is a 400, not a 500 from the FK constraint.
+
+
 const findImage = async (imageId) => {
   const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
 
@@ -303,9 +299,9 @@ const updateAdmin = async (req, res) => {
 
   const { user_id: userId } = existing[0];
 
-  // The route lets any admin through so they can edit their own profile. Every
-  // other admin's record is Super Admin territory, matching the level guard on
-  // the rest of this router.
+  
+  
+  
   if (userId !== req.user.userId && req.user.accessLevel !== ACCESS_LEVELS.SUPER_ADMIN) {
     return sendError(
       res,
@@ -314,10 +310,10 @@ const updateAdmin = async (req, res) => {
     );
   }
 
-  // Same reasoning as the self-deletion guard below: an admin setting their
-  // own account inactive or suspended locks themselves out on the next token
-  // refresh. The Profile page hides the field, but that is only the UI — the
-  // rule has to hold for direct API calls too.
+  
+  
+  
+  
   if (
     userId === req.user.userId &&
     Object.prototype.hasOwnProperty.call(req.body, 'status') &&
@@ -326,8 +322,8 @@ const updateAdmin = async (req, res) => {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'You cannot deactivate your own account.');
   }
 
-  // Same lockout reasoning: an admin demoting themselves loses whatever access
-  // the new tier does not carry, with no way back.
+  
+  
   if (
     userId === req.user.userId &&
     Object.prototype.hasOwnProperty.call(req.body, 'access_level_id')
@@ -343,8 +339,8 @@ const updateAdmin = async (req, res) => {
     }
   }
 
-  // Explicit null clears the photo; any other provided value must resolve to
-  // a real image row.
+  
+  
   if (Object.prototype.hasOwnProperty.call(req.body, 'photo_id') && req.body.photo_id !== null) {
     const image = await findImage(Number(req.body.photo_id));
 
@@ -415,9 +411,9 @@ const deleteAdmin = async (req, res) => {
 
   const { user_id: userId } = existing[0];
 
-  // Diverges from the teachers mirror: an admin deleting their own account
-  // would immediately invalidate the session they're using mid-request,
-  // locking them out. Block self-deletion explicitly.
+  
+  
+  
   if (userId === req.user.userId) {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'You cannot delete your own account.');
   }

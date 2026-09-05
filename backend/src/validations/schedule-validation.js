@@ -2,8 +2,8 @@ const isProvided = (value) => value !== undefined && value !== null && value !==
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// HH:MM or HH:MM:SS, 24-hour. Kept intentionally simple; MySQL rejects an
-// out-of-range TIME anyway, so this just catches the common shape mistakes.
+
+
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 const toMinutes = (time) => {
@@ -49,8 +49,8 @@ const validateRoom = (room, errors) => {
   }
 };
 
-// Validates start/end together so the "end after start" rule can be checked
-// once both are known to be well-formed times.
+
+
 const validateTimeRange = (startTime, endTime, errors, { required }) => {
   const startProvided = isProvided(startTime);
   const endProvided = isProvided(endTime);
@@ -138,10 +138,10 @@ const validateUpdateSchedule = (payload) => {
   if (provided.includes('day_of_week')) {
     validateDayOfWeek(body.day_of_week, errors, { required: false });
   }
-  // start_time/end_time are validated together so a partial update (e.g. only
-  // start_time sent) is still checked against the existing end_time by the
-  // caller, which merges provided fields onto the current row before calling
-  // this the same way it validates a full create.
+  
+  
+  
+  
   if (provided.includes('start_time') || provided.includes('end_time')) {
     validateTimeRange(body.start_time, body.end_time, errors, { required: false });
   }
@@ -161,12 +161,7 @@ const validatePagination = (query) => {
   return { page, limit, search };
 };
 
-/**
- * The end-after-start rule on an already-merged pair. validateUpdateSchedule
- * can only apply it when the caller supplied both times; a partial update
- * supplies one and inherits the other, so the controller re-checks the merged
- * result through this.
- */
+
 const isEndAfterStart = (startTime, endTime) =>
   toMinutes(String(endTime)) > toMinutes(String(startTime));
 

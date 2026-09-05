@@ -4,8 +4,8 @@ const HTTP_STATUS = require('../../utils/http-status');
 const { sendOk, sendError } = require('../../utils/send-response');
 const { validateUpdateTeacher, normalizePhone } = require('../../validations/teacher-validation');
 
-// Mirrors TEACHER_SELECT_FIELDS in controllers/admin/teachers-controller.js.
-// users.password_hash is never selected.
+
+
 const TEACHER_SELECT_FIELDS = `
   teachers.id,
   teachers.user_id,
@@ -23,12 +23,7 @@ const TEACHER_SELECT_FIELDS = `
   users.status
 `;
 
-/**
- * What a teacher may change about themselves. Deliberately narrower than the
- * admin list: employee_number identifies the staff record, and email and
- * status are account controls — a teacher must not be able to rename, move or
- * reactivate their own account. Those stay with the admin endpoint.
- */
+
 const SELF_UPDATE_FIELDS = [
   'first_name',
   'last_name',
@@ -93,8 +88,8 @@ const getProfile = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  // The record edited is always the one the token points at — never an id from
-  // the request — so a teacher cannot edit another teacher's profile.
+  
+  
   const teacherId = req.user.profileId;
 
   if (!teacherId) {
@@ -126,8 +121,8 @@ const updateProfile = async (req, res) => {
     );
   }
 
-  // Reuses the admin validator so the rules on names, gender and phone stay in
-  // one place; only the fields above ever reach it.
+  
+  
   const validationErrors = validateUpdateTeacher(body);
 
   if (validationErrors.length > 0) {
@@ -140,8 +135,8 @@ const updateProfile = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Teacher not found.');
   }
 
-  // Explicit null clears the photo; any other value must resolve to a real
-  // image row, so a bad id is a 400 rather than a 500 from the FK constraint.
+  
+  
   if (Object.prototype.hasOwnProperty.call(body, 'photo_id') && body.photo_id !== null) {
     const image = await findImage(Number(body.photo_id));
 

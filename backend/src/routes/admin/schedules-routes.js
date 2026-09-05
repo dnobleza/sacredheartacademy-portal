@@ -6,8 +6,8 @@ const schedulesController = require('../../controllers/admin/schedules-controlle
 
 const router = express.Router();
 
-// Any admin access level may manage schedules; unlike admin accounts, there
-// is no requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', schedulesController.createSchedule);

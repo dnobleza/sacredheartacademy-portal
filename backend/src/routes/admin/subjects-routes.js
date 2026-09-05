@@ -6,8 +6,8 @@ const subjectsController = require('../../controllers/admin/subjects-controller'
 
 const router = express.Router();
 
-// Any admin access level may manage subjects; unlike admin accounts, there is
-// no requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', subjectsController.createSubject);

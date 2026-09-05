@@ -18,9 +18,9 @@ const IMAGE_SELECT_FIELDS = `
   updated_at
 `;
 
-// req.file is populated by the uploadImage middleware, which has already
-// validated the type, size, and magic bytes and written the file to disk
-// under its generated filename before this handler runs.
+
+
+
 const createImage = async (req, res) => {
   const uploadedBy = req.user.userId;
 
@@ -39,11 +39,7 @@ const createImage = async (req, res) => {
   return sendCreated(res, rows[0]);
 };
 
-/**
- * Streams the stored file. The headers and the missing-file handling live in
- * utils/stream-image.js, shared with the public announcement image path so the
- * two cannot drift apart.
- */
+
 const getImageById = async (req, res) => {
   const imageId = req.params.id;
 
@@ -80,11 +76,11 @@ const deleteImage = async (req, res) => {
     );
   }
 
-  // Delete the row first: any FK referencing this image is ON DELETE SET
-  // NULL, so this cannot fail on a still-referenced image. The goal state is
-  // "no image" — if the unlink below fails, the row is already gone and a
-  // stray file on disk is a harmless cleanup problem, not a dangling
-  // database reference.
+  
+  
+  
+  
+  
   await pool.execute('DELETE FROM images WHERE id = ?', [imageId]);
 
   const filePath = path.join(UPLOAD_DIR, filename);

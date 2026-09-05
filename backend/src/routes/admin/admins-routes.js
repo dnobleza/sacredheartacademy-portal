@@ -11,16 +11,16 @@ const router = express.Router();
 
 router.use(authenticateToken, authorizeRoles('admin'));
 
-// Managing admin accounts is Super Admin only.
+
 const superAdminOnly = requireMinAccessLevel(ACCESS_LEVELS.SUPER_ADMIN);
 
 router.post('/', superAdminOnly, accountCreationLimiter, adminsController.createAdmin);
 router.get('/', superAdminOnly, asyncHandler(adminsController.listAdmins));
 router.get('/:id', superAdminOnly, asyncHandler(adminsController.getAdminById));
 
-// The exception: every admin reaches this route to edit their own profile.
-// updateAdmin carries the other half of the rule and requires Super Admin to
-// edit anyone else's record.
+
+
+
 router.put('/:id', adminsController.updateAdmin);
 
 router.delete('/:id', superAdminOnly, adminsController.deleteAdmin);

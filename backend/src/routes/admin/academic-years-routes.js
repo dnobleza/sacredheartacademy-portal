@@ -6,8 +6,8 @@ const academicYearsController = require('../../controllers/admin/academic-years-
 
 const router = express.Router();
 
-// Any admin access level may manage school years; unlike teachers/admins,
-// there is no requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', academicYearsController.createAcademicYear);

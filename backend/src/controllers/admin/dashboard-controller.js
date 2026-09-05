@@ -1,17 +1,17 @@
 const pool = require('../../config/database');
 const { sendOk } = require('../../utils/send-response');
 
-// Mirrors the author_name expression used by the announcements list endpoint.
-// CONCAT_WS never returns NULL, so an admin-less author (LEFT JOIN miss)
-// produces '' rather than NULL and COALESCE alone would not fall through to
-// the email; NULLIF turns that '' back into NULL first.
+
+
+
+
 const AUTHOR_NAME_EXPR = `COALESCE(
   NULLIF(CONCAT_WS(' ', admins.first_name, admins.last_name), ''),
   users.email
 )`;
 
-// The dashboard shows people only — the academic and scheduling resources
-// keep their own pages, reachable from the sidebar.
+
+
 const COUNT_QUERIES = {
   students: 'SELECT COUNT(*) AS total FROM students',
   teachers: 'SELECT COUNT(*) AS total FROM teachers',
@@ -19,9 +19,9 @@ const COUNT_QUERIES = {
   admins: 'SELECT COUNT(*) AS total FROM admins',
 };
 
-// The dashboard cards list who was registered most recently, so each query is
-// the same shape over a different profile table. Only the email is taken from
-// users — never the password hash or any other credential column.
+
+
+
 const recentPeopleQuery = (table) => `
   SELECT
     ${table}.id,
@@ -34,7 +34,7 @@ const recentPeopleQuery = (table) => `
   ORDER BY ${table}.created_at DESC, ${table}.id DESC
   LIMIT 5`;
 
-// Table names are fixed literals from this file, never request input.
+
 const RECENT_PEOPLE_QUERIES = {
   recent_students: recentPeopleQuery('students'),
   recent_teachers: recentPeopleQuery('teachers'),
@@ -42,9 +42,9 @@ const RECENT_PEOPLE_QUERIES = {
   recent_admins: recentPeopleQuery('admins'),
 };
 
-// This endpoint exists specifically to replace the frontend firing one
-// request per resource, so the counts are run in parallel rather than as one
-// giant UNION or sequential round trips.
+
+
+
 const getCounts = async () => {
   const keys = Object.keys(COUNT_QUERIES);
 
@@ -79,14 +79,14 @@ const getActiveAcademicYear = async () => {
      LIMIT 1`,
   );
 
-  // No active academic year is a legitimate state (e.g. between school
-  // years), not an error — the frontend is expected to warn about it.
+  
+  
   return rows.length > 0 ? rows[0] : null;
 };
 
 const getEnrolleesByGradeLevel = async (academicYearId) => {
-  // Without an active school year there is nothing to chart; the frontend
-  // shows the same warning it shows for active_academic_year: null.
+  
+  
   if (!academicYearId) {
     return [];
   }
@@ -140,7 +140,7 @@ const getDashboard = async (req, res) => {
     getRecentPeople(),
   ]);
 
-  // Depends on the active year, so it cannot join the batch above.
+  
   const enrolleesByGradeLevel = await getEnrolleesByGradeLevel(activeAcademicYear?.id);
 
   return sendOk(res, {

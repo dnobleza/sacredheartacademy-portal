@@ -6,7 +6,7 @@ const classesController = require('../../controllers/admin/classes-controller');
 
 const router = express.Router();
 
-// Any admin access level may manage advisory classes; no requireMinAccessLevel gate.
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', classesController.createAdvisoryClass);

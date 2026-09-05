@@ -13,7 +13,7 @@ const PASSWORD_LENGTH = 12;
 
 const STATUS_VALUES = ['pending', 'reviewing', 'accepted', 'rejected', 'enrolled'];
 
-// Mirrors generateTemporaryPassword in students-controller.js.
+
 const generateTemporaryPassword = () => {
   const raw = crypto.randomBytes(PASSWORD_LENGTH).toString('base64');
   const sanitized = raw.replace(/[+/=]/g, '');
@@ -80,7 +80,7 @@ const listApplications = async (req, res) => {
   const conditions = [];
   const params = [];
 
-  // An unknown status would silently return everything, so it is refused.
+  
   if (req.query.status) {
     if (!STATUS_VALUES.includes(req.query.status)) {
       return sendError(res, HTTP_STATUS.BAD_REQUEST, `Status must be one of: ${STATUS_VALUES.join(', ')}.`);
@@ -139,11 +139,7 @@ const getApplicationById = async (req, res) => {
   return sendOk(res, application);
 };
 
-/**
- * Moves an application to 'reviewing' or 'rejected'. 'accepted' is not
- * reachable here: accepting creates a student account, so it goes through
- * acceptApplication and its transaction.
- */
+
 const updateStatus = async (req, res) => {
   const applicationId = parseId(req.params.id);
 
@@ -163,8 +159,8 @@ const updateStatus = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Application not found.');
   }
 
-  // An accepted application already has a student account behind it; reopening
-  // it would leave that account orphaned from the record that explains it.
+  
+  
   if (application.status === 'accepted' || application.status === 'enrolled') {
     return sendError(
       res,
@@ -189,15 +185,7 @@ const updateStatus = async (req, res) => {
   return sendOk(res, await findApplication(applicationId));
 };
 
-/**
- * Accepting converts the application into a real account: one users row and one
- * students row, written in a single transaction alongside the status change, so
- * a failure part-way cannot leave a login with no profile or an application
- * that claims a student who does not exist.
- *
- * The temporary password is returned once and never stored in the clear, the
- * same contract the Students screen already has.
- */
+
 const acceptApplication = async (req, res) => {
   const applicationId = parseId(req.params.id);
 
@@ -211,7 +199,7 @@ const acceptApplication = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Application not found.');
   }
 
-  // Guards a double click: a second accept must not create a second account.
+  
   if (application.status === 'accepted' || application.status === 'enrolled') {
     return sendError(res, HTTP_STATUS.CONFLICT, 'This application has already been accepted.');
   }

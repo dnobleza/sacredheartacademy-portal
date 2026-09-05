@@ -15,12 +15,12 @@ router.get('/', asyncHandler(admissionsController.listApplications));
 router.get('/:id', asyncHandler(admissionsController.getApplicationById));
 router.put('/:id/status', asyncHandler(admissionsController.updateStatus));
 
-// Accepting creates a login, so it carries the same limiter as the other
-// account-creating routes.
+
+
 router.post('/:id/accept', accountCreationLimiter, asyncHandler(admissionsController.acceptApplication));
 
-// Destroying a submitted record is Super Admin only; rejecting is the reversible
-// action every admin has.
+
+
 router.delete(
   '/:id',
   requireMinAccessLevel(ACCESS_LEVELS.SUPER_ADMIN),

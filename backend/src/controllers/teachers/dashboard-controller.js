@@ -2,9 +2,9 @@ const pool = require('../../config/database');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendOk, sendError } = require('../../utils/send-response');
 
-// Same author expression as the admin dashboard: CONCAT_WS never returns NULL,
-// so an admin-less author would yield '' and COALESCE alone would not fall
-// through to the email — NULLIF turns that '' back into NULL first.
+
+
+
 const AUTHOR_NAME_EXPR = `COALESCE(
   NULLIF(CONCAT_WS(' ', admins.first_name, admins.last_name), ''),
   users.email
@@ -17,8 +17,8 @@ const toDate = (value) => {
     return value;
   }
 
-  // MySQL DATE columns arrive as 'YYYY-MM-DD' when dateStrings is on; build in
-  // local time so a timezone west of Greenwich does not shift the day.
+  
+  
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
 
   return dateOnly
@@ -26,12 +26,7 @@ const toDate = (value) => {
     : new Date(value);
 };
 
-/**
- * The schema stores grading_period as an enum with no calendar mapping, so the
- * current period is derived by splitting the active school year into four
- * equal spans. Dates outside the range clamp to the first/last period rather
- * than returning nothing.
- */
+
 const currentGradingPeriod = (academicYear) => {
   if (!academicYear || !academicYear.start_date || !academicYear.end_date) {
     return GRADING_PERIODS[0];
@@ -59,18 +54,12 @@ const getActiveAcademicYear = async () => {
      LIMIT 1`,
   );
 
-  // Between school years there is no active row — a legitimate state the
-  // frontend explains rather than an error.
+  
+  
   return rows.length > 0 ? rows[0] : null;
 };
 
-/**
- * Sections this teacher advises. Distinct from class_subjects: advisory is
- * "adviser of this section" (what the admin Classes screen assigns), while a
- * class_subject is "teaches this subject to this section" (created alongside a
- * schedule entry). Attendance and grades hang off class_subjects only, so
- * advisory sections are reported separately rather than folded into them.
- */
+
 const getAdvisoryClasses = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT
@@ -95,9 +84,9 @@ const getAdvisoryClasses = async (teacherId, academicYearId) => {
   return rows;
 };
 
-// "My Classes" counts the sections a teacher is responsible for, from either
-// direction: a subject they teach, or a section they advise. A section reached
-// both ways is one class, hence the union of distinct section ids.
+
+
+
 const getClassCount = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT COUNT(*) AS total FROM (
@@ -115,8 +104,8 @@ const getClassCount = async (teacherId, academicYearId) => {
   return rows[0].total;
 };
 
-// Counted over the same union of sections, so a student is counted once even
-// when their adviser also teaches them several subjects.
+
+
 const getStudentCount = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT COUNT(DISTINCT enrollments.student_id) AS total
@@ -151,7 +140,7 @@ const getAttendanceRate = async (teacherId, academicYearId) => {
 
   const { total, present_total: presentTotal } = rows[0];
 
-  // No attendance recorded yet is not 0% — the card shows a dash instead.
+  
   if (!total) {
     return null;
   }
@@ -180,11 +169,7 @@ const getPendingGradeCount = async (teacherId, academicYearId, gradingPeriod) =>
   return rows[0].total;
 };
 
-/**
- * Roster size and today's attendance for each class the teacher handles. The
- * roster is a correlated subquery rather than a second JOIN so the attendance
- * aggregate is not multiplied by the number of enrolled students.
- */
+
 const getAttendanceToday = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT
@@ -215,15 +200,12 @@ const getAttendanceToday = async (teacherId, academicYearId) => {
 
   return rows.map((row) => ({
     ...row,
-    // Distinguishes "nobody present" from "attendance not taken yet".
+    
     taken: Number(row.marked_count) > 0,
   }));
 };
 
-/**
- * Per class: how many enrolled students still have no grade for the current
- * period. Drives both the pending-task list and its done/undone flag.
- */
+
 const getMissingGradesByClass = async (teacherId, academicYearId, gradingPeriod) => {
   const [rows] = await pool.execute(
     `SELECT
@@ -255,12 +237,7 @@ const getMissingGradesByClass = async (teacherId, academicYearId, gradingPeriod)
 
 const MAX_PENDING_TASKS = 6;
 
-/**
- * Pending tasks are derived, never stored: a class owes work when grades for
- * the current period are missing or today's attendance has not been taken.
- * Outstanding items are listed first so the warnings are never pushed off the
- * end by completed ones.
- */
+
 const buildPendingTasks = (missingGrades, attendanceToday, gradingPeriod) => {
   const gradeTasks = missingGrades.map((row) => ({
     type: 'grades',
@@ -316,10 +293,10 @@ const EMPTY_COUNTS = {
 };
 
 const getDashboard = async (req, res) => {
-  // The login token carries teachers.id as profileId. It is null when a
-  // teacher user has no profile row, which must be refused rather than
-  // queried with — a NULL teacher_id would match nothing but still imply the
-  // account is fine.
+  
+  
+  
+  
   const teacherId = req.user.profileId;
 
   if (!teacherId) {
@@ -330,9 +307,9 @@ const getDashboard = async (req, res) => {
   const gradingPeriod = currentGradingPeriod(activeAcademicYear);
   const recentAnnouncements = await getRecentAnnouncements();
 
-  // Everything else is scoped to the active school year; without one there is
-  // nothing to report, so the empty payload is returned instead of running
-  // queries that cannot match.
+  
+  
+  
   if (!activeAcademicYear) {
     return sendOk(res, {
       counts: EMPTY_COUNTS,

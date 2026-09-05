@@ -38,9 +38,9 @@ const SCHEDULE_JOINS = `
   JOIN academic_years ON academic_years.id = class_subjects.academic_year_id
 `;
 
-// Mirrors findGradeLevel in sections-controller.js: resolve each foreign key
-// up front so a bad id surfaces as a 400 with a specific message, not a 500
-// from the class_subjects/schedules FK constraints.
+
+
+
 const findSection = async (sectionId) => {
   const [rows] = await pool.execute('SELECT id FROM sections WHERE id = ?', [sectionId]);
   return rows[0] || null;
@@ -63,9 +63,9 @@ const findAcademicYear = async (academicYearId) => {
   return rows[0] || null;
 };
 
-// Validates the four class_subjects parts a caller thinks in terms of
-// ("this teacher teaches this subject to this section this year"), each
-// against its own table so the error names the specific bad field.
+
+
+
 const validateClassSubjectParts = async ({ sectionId, subjectId, teacherId, academicYearId }) => {
   const [section, subject, teacher, academicYear] = await Promise.all([
     findSection(sectionId),
@@ -89,10 +89,10 @@ const validateClassSubjectParts = async ({ sectionId, subjectId, teacherId, acad
   return null;
 };
 
-// class_subjects is the join row representing "this teacher teaches this
-// subject to this section this year". There is no screen to manage it
-// directly, so the schedule API finds the existing row or creates it as
-// part of writing the schedule.
+
+
+
+
 const findOrCreateClassSubjectId = async (
   connection,
   { sectionId, subjectId, teacherId, academicYearId },
@@ -116,11 +116,11 @@ const findOrCreateClassSubjectId = async (
   return result.insertId;
 };
 
-// Overlap test: two ranges [new_start, new_end) and [existing_start, existing_end)
-// overlap unless one ends before or exactly when the other starts. Negating
-// that ("new starts before existing ends" AND "new ends after existing
-// starts") gives the overlap condition below -- it reads as backwards at a
-// glance because it is phrased as "not disjoint", not "overlapping".
+
+
+
+
+
 const CLASH_SELECT = `
   SELECT schedules.id
   FROM schedules
@@ -211,8 +211,8 @@ const createSchedule = async (req, res) => {
 
   const connection = await pool.getConnection();
 
-  // beginTransaction is inside the guarded chain: if it throws, the finally
-  // below still returns the connection to the pool.
+  
+  
   const scheduleId = await (async () => {
     await connection.beginTransaction();
     const clash = await checkForClashes(connection, {
@@ -282,8 +282,8 @@ const listSchedules = async (req, res) => {
     searchParams,
   );
 
-  // FIELD() orders by the listed sequence rather than alphabetically --
-  // without it, 'Friday' sorts before 'Monday' and the schedule reads wrong.
+  
+  
   const [rows] = await pool.query(
     `SELECT ${SCHEDULE_SELECT_FIELDS}
      ${SCHEDULE_JOINS}
@@ -344,8 +344,8 @@ const updateSchedule = async (req, res) => {
 
   const existing = existingRows[0];
 
-  // Merge provided fields onto the current row so a partial update (e.g.
-  // only room) is still validated/clash-checked against the full picture.
+  
+  
   const sectionId = Object.prototype.hasOwnProperty.call(req.body, 'section_id')
     ? Number(req.body.section_id)
     : existing.section_id;
@@ -382,17 +382,17 @@ const updateSchedule = async (req, res) => {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, partsError);
   }
 
-  // The validator can only compare the two times when the caller sent both.
-  // Sending just one inherits the other from the stored row, so the merged
-  // pair has to be checked here or an inverted range slips through.
+  
+  
+  
   if (!isEndAfterStart(startTime, endTime)) {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'End time must be after start time.');
   }
 
   const connection = await pool.getConnection();
 
-  // beginTransaction is inside the guarded chain: if it throws, the finally
-  // below still returns the connection to the pool.
+  
+  
   await (async () => {
     await connection.beginTransaction();
     const clash = await checkForClashes(connection, {
@@ -459,9 +459,9 @@ const deleteSchedule = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Schedule not found.');
   }
 
-  // Only the schedule row is removed. class_subjects is left in place --
-  // other schedules or grades may reference the same teacher/subject/section/
-  // year combination.
+  
+  
+  
   await pool.execute('DELETE FROM schedules WHERE id = ?', [scheduleId]);
 
   logger.info(`Schedule ${scheduleId} deleted by admin ${req.user.userId}`);
