@@ -5,7 +5,11 @@ npm-debug.log*
 .env.*.local
 src/logs
 *.log
+# Migrations and init SQL are applied to the database, not run by the API, so
+# they stay out of the image. The admin seeder is the exception: it is an
+# operational command run inside this container.
 database
+!database/seed-admin.js
 .git
 .gitignore
 Dockerfile
