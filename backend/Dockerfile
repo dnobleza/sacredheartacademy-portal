@@ -13,6 +13,10 @@ RUN npm ci --omit=dev
 
 COPY src ./src
 
+# The one-off Super Admin seeder, run with `npm run seed:admin` inside the
+# container. See database/seed-admin.js for the environment variables it needs.
+COPY database/seed-admin.js ./database/seed-admin.js
+
 # The app writes winston logs to src/logs, which is not in the repo.
 # Create it and hand ownership to the unprivileged node user.
 RUN mkdir -p src/logs && chown -R node:node /app
