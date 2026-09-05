@@ -11,6 +11,7 @@ import MenuList from '@mui/material/MenuList';
 import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import Badge from '@mui/material/Badge';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
@@ -41,6 +42,7 @@ import {
 } from 'lucide-react';
 import Logo from '../components/common/Logo';
 import NotificationBell from '../components/common/NotificationBell';
+import { fetchUnreadMessageCount } from '../services/messagesApi';
 import { useAuth } from '../context/AuthContext';
 import { roleLabel } from '../utils/roles';
 import { glass, AQUA } from '../theme';
@@ -120,7 +122,70 @@ const visibleNav = (items, level) =>
     )
     .filter((item) => !item.children || item.children.length > 0);
 
+// Matches the notification bell's cadence so the two counters move together.
+const UNREAD_POLL_INTERVAL_MS = 30000;
+
+/**
+ * Unread messages addressed to the viewer, for the nav badge. A failed poll
+ * keeps the last known count rather than flashing the badge away.
+ */
+const useUnreadMessageCount = () => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = () => {
+      fetchUnreadMessageCount()
+        .then((value) => {
+          if (!cancelled) {
+            setCount(value);
+          }
+        })
+        .catch(() => {});
+    };
+
+    load();
+    const timer = window.setInterval(load, UNREAD_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return count;
+};
+
+// A group shows the total of its children so a collapsed rail or a closed
+// group still reveals that something is waiting.
+const badgeCountFor = (item, unreadMessages) => {
+  if (item.children) {
+    return item.children.reduce((total, child) => total + badgeCountFor(child, unreadMessages), 0);
+  }
+
+  return item.badge === 'messages' ? unreadMessages : 0;
+};
+
+function NavBadge({ count, children }) {
+  if (!count) {
+    return children;
+  }
+
+  return (
+    <Badge
+      badgeContent={count}
+      color="error"
+      max={99}
+      sx={{ '& .MuiBadge-badge': { fontSize: '0.6875rem', height: 18, minWidth: 18 } }}
+    >
+      {children}
+    </Badge>
+  );
+}
+
 function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onLogout, signingOut }) {
+  const unreadMessages = useUnreadMessageCount();
   const location = useLocation();
   const { user } = useAuth();
 
@@ -246,7 +311,9 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                 }}
               >
                 <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                  <GroupIcon size={20} strokeWidth={2} />
+                  <NavBadge count={badgeCountFor(item, unreadMessages)}>
+                    <GroupIcon size={20} strokeWidth={2} />
+                  </NavBadge>
                 </Box>
                 {!collapsed && (
                   <>
@@ -304,7 +371,9 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                               sx={navLinkSx(false)}
                             >
                               <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                                <ChildIcon size={18} strokeWidth={2} />
+                                <NavBadge count={badgeCountFor(child, unreadMessages)}>
+                                  <ChildIcon size={18} strokeWidth={2} />
+                                </NavBadge>
                               </Box>
                               <span>{child.label}</span>
                             </Box>
@@ -345,7 +414,9 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                               backgroundColor: childActive ? 'primary.light' : 'transparent',
                             }}
                           >
-                            <ChildIcon size={18} strokeWidth={2} />
+                            <NavBadge count={badgeCountFor(child, unreadMessages)}>
+                              <ChildIcon size={18} strokeWidth={2} />
+                            </NavBadge>
                             {child.label}
                           </MenuItem>
                         );
@@ -369,7 +440,9 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
               sx={navLinkSx(collapsed)}
             >
               <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                <Icon size={20} strokeWidth={2} />
+                <NavBadge count={badgeCountFor(item, unreadMessages)}>
+                  <Icon size={20} strokeWidth={2} />
+                </NavBadge>
               </Box>
               {!collapsed && <span>{item.label}</span>}
             </Box>

@@ -12,6 +12,7 @@ router.use(authenticateToken);
 
 router.get('/conversations', asyncHandler(messagesController.listConversations));
 router.get('/recipients', asyncHandler(messagesController.listRecipients));
+router.get('/unread-count', asyncHandler(messagesController.getUnreadCount));
 router.get('/with/:userId', asyncHandler(messagesController.getThreadWithUser));
 router.post('/', asyncHandler(messagesController.createMessage));
 

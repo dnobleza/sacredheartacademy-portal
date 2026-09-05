@@ -32,6 +32,6 @@ export const TEACHER_NAV = [
     icon: 'MessageSquare',
     // No Announcements entry: posting announcements is an admin-only action.
     // Teachers read them on the overview feed instead.
-    children: [{ to: '/teacher/messages', label: 'Messages', icon: 'MessageSquare' }],
+    children: [{ to: '/teacher/messages', label: 'Messages', icon: 'MessageSquare', badge: 'messages' }],
   },
 ];

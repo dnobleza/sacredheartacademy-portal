@@ -25,3 +25,8 @@ export const fetchRecipients = async (search) => {
   });
   return response.data.data;
 };
+
+export const fetchUnreadMessageCount = async () => {
+  const response = await api.get('/messages/unread-count');
+  return response.data.data.unread_count;
+};

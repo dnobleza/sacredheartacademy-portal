@@ -164,6 +164,20 @@ const createMessage = async (req, res) => {
 };
 
 /**
+ * Total unread messages addressed to the caller, for the sidebar badge. Kept
+ * separate from listConversations so the nav can poll it cheaply without
+ * pulling every thread's last message.
+ */
+const getUnreadCount = async (req, res) => {
+  const [[{ unread_count: unreadCount }]] = await pool.execute(
+    'SELECT COUNT(*) AS unread_count FROM messages WHERE receiver_id = ? AND is_read = 0',
+    [req.user.userId],
+  );
+
+  return sendOk(res, { unread_count: Number(unreadCount) });
+};
+
+/**
  * Active users the caller can start a new conversation with. Uses HAVING
  * (rather than WHERE) to filter on the computed `name` alias — MySQL does not
  * allow SELECT aliases in WHERE, and there is no aggregation here to avoid.
@@ -197,4 +211,5 @@ module.exports = {
   getThreadWithUser,
   createMessage,
   listRecipients,
+  getUnreadCount,
 };
