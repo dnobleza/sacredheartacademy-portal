@@ -6,8 +6,8 @@ const gradeLevelsController = require('../../controllers/admin/grade-levels-cont
 
 const router = express.Router();
 
-// Any admin access level may manage grade levels; unlike teachers/admins,
-// there is no requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', gradeLevelsController.createGradeLevel);

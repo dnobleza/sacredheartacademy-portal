@@ -25,8 +25,8 @@ const validateName = (name, errors, { required }) => {
   }
 };
 
-// description is a text column, so the database imposes no practical limit.
-// Cap it here to keep a runaway paste out of the row.
+
+
 const validateDescription = (description, errors) => {
   if (!isProvided(description)) {
     return;

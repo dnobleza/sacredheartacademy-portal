@@ -8,8 +8,8 @@ const accessLevelsController = require('../../controllers/admin/access-levels-co
 
 const router = express.Router();
 
-// Only Super Admin manages admin accounts, so only Super Admin needs the list
-// of levels those accounts can hold.
+
+
 router.use(
   authenticateToken,
   authorizeRoles('admin'),

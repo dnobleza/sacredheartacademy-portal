@@ -69,9 +69,9 @@ const listGradeLevels = async (req, res) => {
     [...searchParams, limit, offset],
   );
 
-  // Key must be the literal string 'grade-levels' (hyphenated, matching the
-  // resource name), not a JS identifier — the frontend's adminApi does
-  // data[resource] with resource === 'grade-levels'.
+  
+  
+  
   return sendOk(res, {
     'grade-levels': rows,
     pagination: {

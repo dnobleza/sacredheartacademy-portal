@@ -13,10 +13,7 @@ const getActiveAcademicYear = async () => {
   return rows.length > 0 ? rows[0] : null;
 };
 
-/**
- * Sections the teacher advises. The admin Classes screen assigns these, and
- * they carry no subject — an adviser owns the whole section.
- */
+
 const getAdvisoryClasses = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT
@@ -41,10 +38,7 @@ const getAdvisoryClasses = async (teacherId, academicYearId) => {
   return rows;
 };
 
-/**
- * Subjects the teacher teaches to a section. These rows are created alongside
- * a schedule entry, so a teacher with no schedule has none.
- */
+
 const getSubjectClasses = async (teacherId, academicYearId) => {
   const [rows] = await pool.execute(
     `SELECT
@@ -97,12 +91,7 @@ const listClasses = async (req, res) => {
   });
 };
 
-/**
- * A teacher may only read a section they actually handle this year, whether as
- * its adviser or through a subject they teach. Checked server-side: the id in
- * the URL is client-controlled and a section the teacher does not handle must
- * be a 403, never a roster.
- */
+
 const teacherHandlesSection = async (teacherId, academicYearId, sectionId) => {
   const [rows] = await pool.execute(
     `SELECT 1 AS handled
@@ -148,8 +137,8 @@ const getSectionRoster = async (req, res) => {
     return sendError(res, HTTP_STATUS.FORBIDDEN, 'You do not handle this section.');
   }
 
-  // Only the fields a class list needs — no birth date, address or contact
-  // details, which a subject teacher has no reason to read here.
+  
+  
   const [students] = await pool.execute(
     `SELECT
        students.id,

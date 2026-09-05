@@ -19,8 +19,8 @@ const validateTitle = (title, errors, { required }) => {
   }
 };
 
-// content is a text column, so the database imposes no practical limit. Cap
-// it here to keep a runaway paste out of the row.
+
+
 const validateContent = (content, errors, { required }) => {
   if (!isProvided(content)) {
     if (required) {
@@ -48,9 +48,9 @@ const validateTargetRole = (targetRole, errors) => {
   }
 };
 
-// Only checks the shape. Whether the id exists needs a database read, so the
-// controller does that part (findImage), mirroring how access_level_id and
-// grade_level_id are validated elsewhere.
+
+
+
 const validateImageId = (imageId, errors) => {
   if (!isProvided(imageId)) {
     return;

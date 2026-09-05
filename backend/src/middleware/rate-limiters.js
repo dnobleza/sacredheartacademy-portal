@@ -31,9 +31,9 @@ const loginLimiter = rateLimit({
   handler: buildHandler('Too many login attempts. Please try again in 15 minutes.'),
 });
 
-// Called on every page load to swap the refresh cookie for an access token,
-// so the ceiling is generous — it exists to blunt cookie brute-forcing, not
-// to throttle normal use.
+
+
+
 const refreshLimiter = rateLimit({
   windowMs: FIFTEEN_MINUTES_MS,
   limit: 60,
@@ -50,9 +50,9 @@ const accountCreationLimiter = rateLimit({
   handler: buildHandler('Too many accounts created from this address. Please try again later.'),
 });
 
-// The public admission form is the only unauthenticated write in the app, so
-// the ceiling is low: a family submits once, or a handful of times for
-// siblings, never dozens.
+
+
+
 const admissionLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 5,

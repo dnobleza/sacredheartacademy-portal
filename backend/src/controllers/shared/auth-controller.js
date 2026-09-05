@@ -32,10 +32,10 @@ const findProfileByUserId = async (roleName, userId) => {
   return rows[0] || null;
 };
 
-// Access level travels with the user on every lookup so login, refresh and
-// /auth/me return the same shape. The composite foreign key on users
-// guarantees the level belongs to the user's role, so this join can never
-// widen access on its own.
+
+
+
+
 const ACCESS_LEVEL_FIELDS = `
   access_levels.id AS access_level_id,
   access_levels.code AS access_level_code,
@@ -72,10 +72,7 @@ const refreshCookieOptions = () => ({
   secure: env.NODE_ENV === 'production',
 });
 
-/**
- * Best-effort cleanup of expired denylist rows. Called opportunistically on
- * logout rather than via a cron job, so the table never grows unbounded.
- */
+
 const purgeExpiredRevokedTokens = async () => {
   try {
     await pool.execute('DELETE FROM revoked_tokens WHERE expires_at < NOW()');
@@ -84,16 +81,13 @@ const purgeExpiredRevokedTokens = async () => {
   }
 };
 
-// A token rotated away stays usable for this long so two tabs refreshing at
-// the same moment do not knock each other out. Long enough to cover a request
-// already in flight, far too short to be useful to an attacker replaying a
-// token captured later.
+
+
+
+
 const ROTATION_GRACE_MS = 60 * 1000;
 
-/**
- * A token is refused when it has been revoked outright (logout, where
- * redeemable_until is NULL) or when its rotation grace window has passed.
- */
+
 const isTokenRevoked = async (jti) => {
   if (!jti) {
     return false;
@@ -108,10 +102,7 @@ const isTokenRevoked = async (jti) => {
   return rows.length > 0;
 };
 
-/**
- * Records a refresh token as spent. `graceMs` of 0 revokes it outright — used
- * by logout, which must be immediate and final.
- */
+
 const revokeToken = async (jti, userId, expSeconds, graceMs = 0) => {
   if (!jti || !userId || !expSeconds) {
     return;
@@ -135,10 +126,7 @@ const revokeToken = async (jti, userId, expSeconds, graceMs = 0) => {
   }
 };
 
-/**
- * Signs a fresh access/refresh pair, sets the refresh cookie, and returns the
- * body shared by login and refresh so both stay in step.
- */
+
 const issueSession = async (res, user) => {
   const profile = await findProfileByUserId(user.role, user.id);
 
@@ -146,10 +134,10 @@ const issueSession = async (res, user) => {
     userId: user.id,
     role: user.role,
     profileId: profile ? profile.id : null,
-    // The numeric tier only. Names are for display and come from /auth/me, so
-    // the token stays small. A future level guard must treat a missing claim
-    // as a denial: refresh tokens issued before access levels shipped carry
-    // none until they expire.
+    
+    
+    
+    
     accessLevel: user.access_level,
   };
 
@@ -222,12 +210,7 @@ const login = async (req, res) => {
   return sendOk(res, await issueSession(res, user));
 };
 
-/**
- * Exchanges the httpOnly refresh cookie for a new access token so a page
- * reload does not sign the user out. The cookie is the credential here, so the
- * user row is re-read on every call — a deactivated or deleted account must not
- * be able to ride an old refresh token.
- */
+
 const refresh = async (req, res) => {
   const token = req.cookies ? req.cookies[REFRESH_COOKIE_NAME] : null;
 
@@ -260,8 +243,8 @@ const refresh = async (req, res) => {
     return rejectSession();
   }
 
-  // Rotation: the old token is spent, but stays valid for a brief grace window
-  // so a concurrent refresh from another tab is not thrown out.
+  
+  
   await revokeToken(decoded.jti, decoded.userId, decoded.exp, ROTATION_GRACE_MS);
 
   return sendOk(res, await issueSession(res, user));
@@ -296,8 +279,8 @@ const logout = async (req, res) => {
       const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
       await revokeToken(decoded.jti, decoded.userId, decoded.exp);
     } catch (error) {
-      // Already expired or unparseable — nothing to revoke. Logout must
-      // still succeed and clear the cookie.
+      
+      
       logger.warn(`Logout with unrevocable refresh token from ${req.ip}: ${error.message}`);
     }
   }

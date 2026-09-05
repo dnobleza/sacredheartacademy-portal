@@ -8,17 +8,17 @@ const {
   normalizePhone,
 } = require('../../validations/admission-validation');
 
-// SECURITY: this is the only unauthenticated write in the application, so the
-// rules are tighter than anywhere else.
-//   - There is no read endpoint here at all. A public GET would hand out other
-//     families' contact details, so submissions can only be read from the
-//     admin router.
-//   - status, reference_number, academic_year_id, reviewed_by and student_id
-//     are set by this file, never read from the body. A caller cannot submit a
-//     pre-accepted application or attach one to an existing student.
-//   - The response carries only the reference number and status, so the
-//     endpoint cannot be used to probe what was stored.
-// Rate limiting lives on the route (admissionLimiter).
+
+
+
+
+
+
+
+
+
+
+
 
 const findGradeLevel = async (gradeLevelId) => {
   const [rows] = await pool.execute('SELECT id, name FROM grade_levels WHERE id = ?', [
@@ -33,8 +33,8 @@ const findActiveAcademicYearId = async () => {
     "SELECT id FROM academic_years WHERE status = 'active' LIMIT 1",
   );
 
-  // Applications are accepted between school years too, so a missing active
-  // year is recorded as NULL rather than refused.
+  
+  
   return rows.length > 0 ? rows[0].id : null;
 };
 
@@ -60,8 +60,8 @@ const createApplication = async (req, res) => {
   const gradeLevelId = Number(req.body.grade_level_id);
   const gradeLevel = await findGradeLevel(gradeLevelId);
 
-  // Checked up front so an unknown id is a 400 from us rather than a 500 from
-  // the foreign key.
+  
+  
   if (!gradeLevel) {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'The selected grade level does not exist.');
   }
@@ -92,9 +92,9 @@ const createApplication = async (req, res) => {
   const connection = await pool.getConnection();
   await connection.beginTransaction();
 
-  // The reference number embeds the row id, so it is written in a second
-  // statement inside the same transaction: either both land or neither does,
-  // and the number can never collide.
+  
+  
+  
   const application = await connection
     .execute(
       `INSERT INTO admission_applications
@@ -150,11 +150,7 @@ const createApplication = async (req, res) => {
   });
 };
 
-/**
- * Grade levels for the public form's dropdown. Names and ids only — this is
- * already public information on the programmes page, and the form cannot be
- * filled in without it.
- */
+
 const listGradeLevels = async (req, res) => {
   const [rows] = await pool.execute(
     `SELECT id, name

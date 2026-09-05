@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.use(authenticateToken, authorizeRoles('teacher'));
 
-// No :id — the teacher edited is always the one the token identifies.
+
 router.get('/', asyncHandler(profileController.getProfile));
 router.put('/', asyncHandler(profileController.updateProfile));
 

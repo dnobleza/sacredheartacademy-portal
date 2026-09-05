@@ -19,9 +19,9 @@ const SECTION_SELECT_FIELDS = `
   grade_levels.level_number
 `;
 
-// Mirrors findAdminAccessLevel in admins-controller.js: validate the foreign
-// key up front so a bad grade_level_id surfaces as a 400, not a 500 from the
-// FK constraint.
+
+
+
 const findGradeLevel = async (gradeLevelId) => {
   const [rows] = await pool.execute('SELECT id FROM grade_levels WHERE id = ?', [gradeLevelId]);
 

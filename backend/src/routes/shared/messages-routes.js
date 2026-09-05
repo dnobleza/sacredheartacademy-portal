@@ -5,9 +5,9 @@ const authenticateToken = require('../../middleware/authenticate-token');
 
 const router = express.Router();
 
-// No authorizeRoles here on purpose: messaging is not role-gated, every role
-// (admin, teacher, student, parent) uses the same endpoints once their
-// portals exist. Only authentication is required.
+
+
+
 router.use(authenticateToken);
 
 router.get('/conversations', asyncHandler(messagesController.listConversations));

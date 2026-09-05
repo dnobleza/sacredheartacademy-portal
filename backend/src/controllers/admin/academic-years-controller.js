@@ -18,9 +18,9 @@ const ACADEMIC_YEAR_SELECT_FIELDS = `
   updated_at
 `;
 
-// Demotes any other row currently marked active. Two concurrent "current"
-// years would let enrollments and schedules be written against both, so at
-// most one row may hold status = 'active' at a time.
+
+
+
 const demoteOtherActiveYears = (connection, excludeId) =>
   connection.execute(
     `UPDATE academic_years SET status = 'completed' WHERE status = 'active' AND id <> ?`,
@@ -94,9 +94,9 @@ const listAcademicYears = async (req, res) => {
     [...searchParams, limit, offset],
   );
 
-  // Key must be the literal string 'academic-years' (hyphenated, matching the
-  // resource name), not a JS identifier — the frontend's adminApi does
-  // data[resource] with resource === 'academic-years'.
+  
+  
+  
   return sendOk(res, {
     'academic-years': rows,
     pagination: {
@@ -166,9 +166,9 @@ const updateAcademicYear = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Academic year not found.');
   }
 
-  // Only one of start_date/end_date may be provided on an update, so the
-  // range check against the validator's own payload can pass while the
-  // effective range (mixing the new value with the stored one) is invalid.
+  
+  
+  
   const effectiveStartDate = Object.prototype.hasOwnProperty.call(req.body, 'start_date')
     ? req.body.start_date
     : existing[0].start_date;

@@ -6,8 +6,8 @@ const sectionsController = require('../../controllers/admin/sections-controller'
 
 const router = express.Router();
 
-// Any admin access level may manage sections; unlike teachers/admins, there
-// is no requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', sectionsController.createSection);

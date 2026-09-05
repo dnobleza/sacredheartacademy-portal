@@ -1,15 +1,7 @@
 const pool = require('../config/database');
 const logger = require('../utils/logger');
 
-/**
- * Notification writing helpers, shared by whichever feature raises them
- * (messages, announcements). Kept out of the controllers so a new source only
- * has to call one function.
- *
- * Raising a notification must never fail the action that caused it: a message
- * that was stored is sent, even if the bell entry could not be written. Errors
- * are logged and swallowed for that reason.
- */
+
 
 const MAX_TITLE_LENGTH = 200;
 
@@ -29,10 +21,7 @@ const notifyUser = async ({ userId, title, message, type }) => {
   }
 };
 
-/**
- * One notification per user holding a role in `roles`. 'all' means everyone.
- * `excludeUserId` keeps the author from being notified about their own post.
- */
+
 const notifyRoles = async ({ roles, title, message, type, excludeUserId }) => {
   try {
     const wantsEveryone = !roles || roles.includes('all');

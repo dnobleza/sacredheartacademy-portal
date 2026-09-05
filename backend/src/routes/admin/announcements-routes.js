@@ -6,8 +6,8 @@ const announcementsController = require('../../controllers/admin/announcements-c
 
 const router = express.Router();
 
-// Any admin access level may manage announcements; there is no
-// requireMinAccessLevel gate here.
+
+
 router.use(authenticateToken, authorizeRoles('admin'));
 
 router.post('/', announcementsController.createAnnouncement);

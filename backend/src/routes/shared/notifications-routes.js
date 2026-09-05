@@ -5,8 +5,8 @@ const authenticateToken = require('../../middleware/authenticate-token');
 
 const router = express.Router();
 
-// No authorizeRoles: every role reads its own notifications through the same
-// endpoints. Only authentication is required.
+
+
 router.use(authenticateToken);
 
 router.get('/', asyncHandler(notificationsController.listNotifications));
