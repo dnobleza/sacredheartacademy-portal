@@ -44,6 +44,8 @@ import {
   Users,
   Users2,
   UsersRound,
+  Folder,
+  Settings,
 } from 'lucide-react';
 import Logo from '../components/common/Logo';
 import NotificationBell from '../components/common/NotificationBell';
@@ -80,6 +82,8 @@ const ICONS = {
   Users2,
   Megaphone,
   MessageSquare,
+  Folder,
+  Settings,
 };
 
 // Wide enough for the longest nav label ("Academic Management") plus its icon

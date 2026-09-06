@@ -10,20 +10,18 @@ import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Pencil } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import useImageObjectUrl from '../../hooks/useImageObjectUrl';
-import { roleLabel } from '../../utils/roles';
-import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
+import DashboardLayout from '../../layouts/DashboardLayout';
 import ProfileEditDialog from '../../components/common/ProfileEditDialog';
+import useImageObjectUrl from '../../hooks/useImageObjectUrl';
+import { useAuth } from '../../context/AuthContext';
 import { updateMyProfile } from '../../services/profileApi';
 import { extractErrorMessage } from '../../services/api';
+import { roleLabel } from '../../utils/roles';
+import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
 
 const DASH = '—';
 
-const displayValue = (value) => {
-  if (value === null || value === undefined || value === '') return DASH;
-  return value;
-};
+const displayValue = (value) => (value === null || value === undefined || value === '' ? DASH : value);
 
 const initials = (first, last) => {
   const letters = [first, last].filter(Boolean).map((part) => part[0].toUpperCase());
@@ -39,36 +37,17 @@ function DetailRow({ label, value }) {
   );
 }
 
-function Profile() {
+function ParentProfile() {
   const { user, profile, refreshProfile } = useAuth();
 
   const [formOpen, setFormOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [toast, setToast] = useState('');
-
   const photoUrl = useImageObjectUrl(profile?.photo_id);
 
   const fullName = [profile?.first_name, profile?.middle_name, profile?.last_name]
     .filter(Boolean)
     .join(' ');
-
-  const accessLevel = user?.access_level;
-
-  const details = [
-    { label: 'Employee number', value: profile?.employee_number },
-    {
-      label: 'Access level',
-      value: accessLevel ? `${accessLevel.code} — ${accessLevel.name}` : null,
-    },
-    { label: 'Mobile number', value: profile?.contact_number },
-    { label: 'Gender', value: profile?.gender },
-    { label: 'Address', value: profile?.address },
-  ];
-
-  const openEdit = () => {
-    setFormError('');
-    setFormOpen(true);
-  };
 
   const handleSubmit = async (payload) => {
     setFormError('');
@@ -84,14 +63,10 @@ function Profile() {
   };
 
   return (
-    <Box>
-      <Typography variant="h2" component="h1" sx={{ fontSize: { xs: '1.6rem', md: '2rem' } }}>
-        Profile
-      </Typography>
-      <Typography variant="body1" sx={{ color: 'text.secondary', mt: 1, mb: 4, maxWidth: 620 }}>
-        Your account details on record at Sacred Heart Academy.
-      </Typography>
-
+    <DashboardLayout
+      title="My profile"
+      description="Your details on record at Sacred Heart Academy."
+    >
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper
@@ -140,11 +115,14 @@ function Profile() {
             </Typography>
 
             <Button
-              onClick={openEdit}
+              onClick={() => {
+                setFormError('');
+                setFormOpen(true);
+              }}
               disabled={!profile}
               startIcon={<Pencil size={16} />}
-              sx={{ mt: 3, borderRadius: CARD_RADIUS, textTransform: 'none', fontWeight: 700 }}
               variant="outlined"
+              sx={{ mt: 3, borderRadius: CARD_RADIUS, textTransform: 'none', fontWeight: 700 }}
             >
               Edit profile
             </Button>
@@ -166,10 +144,14 @@ function Profile() {
             <Divider sx={{ borderColor: 'rgba(22,59,56,0.08)' }} />
 
             <Stack divider={<Divider sx={{ borderColor: 'rgba(22,59,56,0.08)' }} />}>
-              {details.map((detail) => (
-                <DetailRow key={detail.label} label={detail.label} value={detail.value} />
-              ))}
+              <DetailRow label="Mobile number" value={profile?.contact_number} />
+              <DetailRow label="Gender" value={profile?.gender} />
+              <DetailRow label="Address" value={profile?.address} />
             </Stack>
+
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 3 }}>
+              Your name, email and account status are managed by the school administrator.
+            </Typography>
           </Paper>
         </Grid>
       </Grid>
@@ -189,8 +171,8 @@ function Profile() {
         message={toast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
-    </Box>
+    </DashboardLayout>
   );
 }
 
-export default Profile;
+export default ParentProfile;

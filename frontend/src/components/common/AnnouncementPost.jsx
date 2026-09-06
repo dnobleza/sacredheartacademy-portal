@@ -6,7 +6,7 @@ import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { fetchImageObjectUrl } from '../../services/imagesApi';
+import useImageObjectUrl from '../../hooks/useImageObjectUrl';
 import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
 
 const AUDIENCE_LABELS = {
@@ -30,54 +30,6 @@ export const formatDate = (value) => {
 
   return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
 };
-
-/**
- * Object URL for an authenticated image, or null while loading / on failure.
- * Mirrors the pattern in pages/admin/Profile.jsx: the images endpoint needs a
- * bearer token, so the bytes are fetched as a blob and the URL is revoked when
- * the id changes or the component unmounts.
- */
-export function useImageObjectUrl(imageId) {
-  const [url, setUrl] = useState(null);
-
-  useEffect(() => {
-    if (!imageId) {
-      setUrl(null);
-      return undefined;
-    }
-
-    let active = true;
-    let created = null;
-
-    fetchImageObjectUrl(imageId)
-      .then((objectUrl) => {
-        if (!active) {
-          URL.revokeObjectURL(objectUrl);
-          return;
-        }
-
-        created = objectUrl;
-        setUrl(objectUrl);
-      })
-      .catch(() => {
-        // A missing or unreadable image just hides the picture; the post text
-        // still renders.
-        if (active) {
-          setUrl(null);
-        }
-      });
-
-    return () => {
-      active = false;
-
-      if (created) {
-        URL.revokeObjectURL(created);
-      }
-    };
-  }, [imageId]);
-
-  return url;
-}
 
 /**
  * Feed-style announcement card, shared by the admin and teacher dashboards.

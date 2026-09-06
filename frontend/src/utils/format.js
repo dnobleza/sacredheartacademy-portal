@@ -47,3 +47,36 @@ export const PAYMENT_METHOD_LABELS = {
   card: 'Debit/Credit Card',
   other: 'Other',
 };
+
+
+/**
+ * A `HH:MM:SS` time from MySQL, shown the way a schedule reads.
+ */
+export const formatTime = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const [hours, minutes] = String(value).split(':');
+  const hour = Number(hours);
+
+  if (!Number.isFinite(hour)) {
+    return String(value);
+  }
+
+  const suffix = hour < 12 ? 'AM' : 'PM';
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+
+  return `${String(display).padStart(2, '0')}:${minutes} ${suffix}`;
+};
+
+
+export const greeting = () => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return 'Good morning';
+  }
+
+  return hour < 18 ? 'Good afternoon' : 'Good evening';
+};
