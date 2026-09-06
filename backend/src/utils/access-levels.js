@@ -6,9 +6,24 @@ const ACCESS_LEVELS = Object.freeze({
   PARENT: 0,
   TEACHER: 1,
   LABORATORY_STAFF: 2,
+  CASHIER: 2,
   LIBRARIAN: 3,
   REGISTRAR: 3,
   SUPER_ADMIN: 4,
+});
+
+
+
+
+const ACCESS_LEVEL_IDS = Object.freeze({
+  STUDENT: 1,
+  PARENT: 2,
+  TEACHER: 3,
+  LABORATORY_STAFF: 4,
+  LIBRARIAN: 5,
+  REGISTRAR: 6,
+  SUPER_ADMIN: 7,
+  CASHIER: 8,
 });
 
 
@@ -26,5 +41,6 @@ const findSoleAccessLevelId = async (roleId) => {
 
 module.exports = {
   ACCESS_LEVELS,
+  ACCESS_LEVEL_IDS,
   findSoleAccessLevelId,
 };

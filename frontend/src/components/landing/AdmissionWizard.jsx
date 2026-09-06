@@ -23,6 +23,7 @@ import {
   submitAdmissionApplication,
 } from '../../services/publicApi';
 import { extractErrorMessage } from '../../services/api';
+import { CARD_RADIUS } from '../../theme';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -383,7 +384,7 @@ function AdmissionWizard({ onStateChange }) {
       </Stepper>
 
       {submitError && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
           {submitError}
         </Alert>
       )}
@@ -429,7 +430,7 @@ function AdmissionWizard({ onStateChange }) {
                     sx={{
                       cursor: 'pointer',
                       height: '100%',
-                      borderRadius: 3,
+                      borderRadius: CARD_RADIUS,
                       p: 2,
                       border: '2px solid',
                       borderColor: active ? 'primary.main' : 'rgba(22,59,56,0.12)',
@@ -597,7 +598,7 @@ function AdmissionWizard({ onStateChange }) {
         <Box>
           <Typography sx={{ fontWeight: 800, mb: 2 }}>Review your application</Typography>
 
-          <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
+          <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>Enrollment</Typography>
               <Button size="small" onClick={() => setStep(0)} sx={{ fontWeight: 700 }}>
@@ -608,7 +609,7 @@ function AdmissionWizard({ onStateChange }) {
             <SummaryRow label="Enrollment type" value={selectedType?.label} />
           </Paper>
 
-          <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
+          <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>Student</Typography>
               <Button size="small" onClick={() => setStep(1)} sx={{ fontWeight: 700 }}>
@@ -627,7 +628,7 @@ function AdmissionWizard({ onStateChange }) {
             <SummaryRow label="Previous school" value={form.previous_school} />
           </Paper>
 
-          <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
+          <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: '1px solid rgba(22,59,56,0.12)', p: 2.5, mb: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>Parent or guardian</Typography>
               <Button size="small" onClick={() => setStep(2)} sx={{ fontWeight: 700 }}>
@@ -640,7 +641,7 @@ function AdmissionWizard({ onStateChange }) {
             <SummaryRow label="Email" value={form.guardian_email} />
           </Paper>
 
-          <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(22,59,56,0.12)', p: 2.5 }}>
+          <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: '1px solid rgba(22,59,56,0.12)', p: 2.5 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
               <Typography sx={{ fontWeight: 700 }}>Requirements</Typography>
               <Button size="small" onClick={() => setStep(3)} sx={{ fontWeight: 700 }}>

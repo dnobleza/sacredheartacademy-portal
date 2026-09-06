@@ -3,6 +3,7 @@ const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk, sendCreated } = require('../../utils/send-response');
 const { findOpenSection, findSectionWithHeadcount } = require('../../utils/section-assignment');
+const { applyFeeSchedule, assignStudentNumber } = require('../../utils/billing');
 const { validatePagination } = require('../../validations/student-validation');
 const {
   validateCreateEnrollment,
@@ -261,19 +262,43 @@ const createEnrollment = async (req, res) => {
 
 
 
-  if (existing.length > 0) {
-    await pool.execute(
-      `UPDATE enrollments
-       SET section_id = ?, status = 'active', enrollment_date = CURDATE()
-       WHERE id = ?`,
-      [section.id, existing[0].id],
-    );
-  } else {
-    await pool.execute(
-      `INSERT INTO enrollments (student_id, academic_year_id, section_id, enrollment_date, status)
-       VALUES (?, ?, ?, CURDATE(), 'active')`,
-      [studentId, academicYear.id, section.id],
-    );
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  let studentNumber;
+
+  try {
+    if (existing.length > 0) {
+      await connection.execute(
+        `UPDATE enrollments
+         SET section_id = ?, status = 'active', enrollment_date = CURDATE()
+         WHERE id = ?`,
+        [section.id, existing[0].id],
+      );
+    } else {
+      await connection.execute(
+        `INSERT INTO enrollments (student_id, academic_year_id, section_id, enrollment_date, status)
+         VALUES (?, ?, ?, CURDATE(), 'active')`,
+        [studentId, academicYear.id, section.id],
+      );
+    }
+
+    
+    
+    studentNumber = await assignStudentNumber(connection, studentId);
+
+    await applyFeeSchedule(connection, {
+      studentId,
+      academicYearId: academicYear.id,
+      gradeLevelId: section.grade_level_id,
+    });
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 
   logger.info(
@@ -282,6 +307,7 @@ const createEnrollment = async (req, res) => {
 
   return sendCreated(res, {
     student_id: studentId,
+    student_number: studentNumber,
     section_id: section.id,
     section_name: section.name,
     grade_level_name: section.grade_level_name,

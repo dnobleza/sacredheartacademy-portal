@@ -23,6 +23,7 @@ INSERT INTO `access_levels` VALUES (4,1,'Lvl-2',2,'Laboratory Staff','Laboratory
 INSERT INTO `access_levels` VALUES (5,1,'Lvl-3',3,'Librarian','Librarian account','2026-09-04 00:00:00');
 INSERT INTO `access_levels` VALUES (6,1,'Lvl-3',3,'Registrar','Registrar account','2026-09-04 00:00:00');
 INSERT INTO `access_levels` VALUES (7,1,'Lvl-4',4,'Super Admin','Full administrative access','2026-09-04 00:00:00');
+INSERT INTO `access_levels` VALUES (8,1,'Lvl-2',2,'Cashier','Collects payments and issues receipts','2026-09-04 00:00:00');
 /*!40000 ALTER TABLE `access_levels` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

@@ -15,7 +15,7 @@ import { ChevronDown, Menu as MenuIcon, Search, X } from 'lucide-react';
 import GradientButton from '../common/GradientButton';
 import AdmissionFormDialog from './AdmissionFormDialog';
 import Logo from '../common/Logo';
-import { glass } from '../../theme';
+import { CARD_RADIUS, glass } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { portalHome } from '../../utils/roles';
 import { navLinks, school } from '../../data/landing';
@@ -193,7 +193,7 @@ function Navbar() {
                       onClose={closeMenu}
                       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                       transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                      slotProps={{ paper: { sx: { mt: 1, borderRadius: 2.5, minWidth: 200 } } }}
+                      slotProps={{ paper: { sx: { mt: 1, borderRadius: CARD_RADIUS, minWidth: 200 } } }}
                     >
                       {link.children.map((child) => (
                         <MenuItem
@@ -299,7 +299,7 @@ function Navbar() {
                 to={link.to}
                 href={link.to ? undefined : `#${link.id}`}
                 onClick={closeDrawer}
-                sx={{ borderRadius: 2 }}
+                sx={{ borderRadius: CARD_RADIUS }}
               >
                 <ListItemText
                   primary={link.label}
@@ -326,7 +326,7 @@ function Navbar() {
                       runAction(child.action);
                     }
                   }}
-                  sx={{ borderRadius: 2, pl: 4 }}
+                  sx={{ borderRadius: CARD_RADIUS, pl: 4 }}
                 >
                   <ListItemText
                     primary={child.label}

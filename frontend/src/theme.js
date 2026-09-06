@@ -12,6 +12,14 @@ export const AQUA = {
 };
 
 /**
+ * Dashboard and card surfaces use an explicit pixel radius. A bare number in
+ * `sx` is multiplied by shape.borderRadius (20), so `borderRadius: 4` resolved
+ * to 80px and a browser clamped it to half the element — a capsule.
+ */
+export const CARD_RADIUS = '12px';
+export const TILE_RADIUS = '10px';
+
+/**
  * Shared glassmorphism surface. Spread this into `sx` rather than
  * redeclaring the blur/border/shadow on every frosted element.
  */
@@ -21,17 +29,8 @@ export const glass = {
   WebkitBackdropFilter: 'blur(20px)',
   border: '1px solid rgba(255,255,255,0.5)',
   boxShadow: '0 20px 50px rgba(22,59,56,0.08)',
-  borderRadius: 4,
+  borderRadius: CARD_RADIUS,
 };
-
-/**
- * Dashboard panels use explicit pixel radii. A bare number in `sx` is
- * multiplied by shape.borderRadius (20), which is how these cards ended up
- * capsule-shaped: `borderRadius: 4` resolved to 80px, and a browser clamps a
- * radius to half the shorter side of a ~96px-tall card.
- */
-export const CARD_RADIUS = '12px';
-export const TILE_RADIUS = '10px';
 
 export const AQUA_GRADIENT = `linear-gradient(135deg, ${AQUA.primary} 0%, ${AQUA.dark} 100%)`;
 

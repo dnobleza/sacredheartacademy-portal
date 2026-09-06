@@ -17,12 +17,23 @@ router.get(
   '/:id/documents/:documentId',
   asyncHandler(admissionsController.getApplicationDocument),
 );
-router.put('/:id/status', asyncHandler(admissionsController.updateStatus));
-router.put('/:id/return', asyncHandler(admissionsController.returnApplication));
+router.put('/:id/status', requireMinAccessLevel(ACCESS_LEVELS.REGISTRAR), asyncHandler(admissionsController.updateStatus));
+router.put('/:id/return', requireMinAccessLevel(ACCESS_LEVELS.REGISTRAR), asyncHandler(admissionsController.returnApplication));
 
 
 
-router.post('/:id/accept', accountCreationLimiter, asyncHandler(admissionsController.acceptApplication));
+const requireRegistrar = requireMinAccessLevel(ACCESS_LEVELS.REGISTRAR);
+
+router.post(
+  '/:id/accept',
+  requireRegistrar,
+  accountCreationLimiter,
+  asyncHandler(admissionsController.acceptApplication),
+);
+
+
+
+router.post('/:id/enroll', requireRegistrar, asyncHandler(admissionsController.enrollApplicant));
 
 
 

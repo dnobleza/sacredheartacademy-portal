@@ -71,9 +71,21 @@ const admissionLookupLimiter = rateLimit({
   handler: buildHandler('Too many status checks from this address. Please try again later.'),
 });
 
+
+
+
+const paymentDeclarationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 15,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: buildHandler('Too many payment reports from this address. Please try again later.'),
+});
+
 module.exports = {
   generalLimiter,
   admissionLimiter,
+  paymentDeclarationLimiter,
   admissionLookupLimiter,
   loginLimiter,
   refreshLimiter,

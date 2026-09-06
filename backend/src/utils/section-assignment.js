@@ -8,6 +8,7 @@ const SECTION_HEADCOUNT_QUERY = `
     sections.id,
     sections.name,
     sections.capacity,
+    sections.grade_level_id,
     grade_levels.name AS grade_level_name,
     (SELECT COUNT(*)
        FROM enrollments

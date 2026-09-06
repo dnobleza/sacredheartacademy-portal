@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { ArrowLeft } from 'lucide-react';
 import Logo from '../../components/common/Logo';
 import AdmissionWizard from '../../components/landing/AdmissionWizard';
-import { AQUA } from '../../theme';
+import { AQUA, CARD_RADIUS } from '../../theme';
 
 /**
  * The same wizard the navbar opens as a dialog, given a full page for anyone
@@ -42,7 +42,7 @@ function AdmissionApply() {
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 4,
+            borderRadius: CARD_RADIUS,
             border: '1px solid rgba(22,59,56,0.08)',
             backgroundColor: '#FFFFFF',
             p: { xs: 2.5, md: 4 },

@@ -7,6 +7,7 @@
 
 import { createElement } from 'react';
 import ClassStudentsDetail from '../components/admin/ClassStudentsDetail';
+import { formatCurrency } from '../utils/format';
 
 const DAY_OPTIONS = [
   { value: 'Monday', label: 'Monday' },
@@ -264,6 +265,131 @@ export const ADMIN_RESOURCES = {
     ],
   },
 
+  fees: {
+    key: 'fees',
+    label: 'Fees',
+    singular: 'Fee',
+    icon: 'Wallet',
+    displayName: (row) => row.name,
+    searchHint: 'name',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be permanently removed. Fees already charged to a student cannot be deleted.`,
+    columns: [
+      { field: 'name', label: 'Name', minWidth: 190 },
+      { field: 'description', label: 'Description', minWidth: 240 },
+      {
+        field: 'is_active',
+        label: 'Active',
+        minWidth: 100,
+        value: (row) => (row.is_active ? 'Yes' : 'No'),
+      },
+    ],
+    fields: [
+      { name: 'name', label: 'Name', required: true, maxLength: 100 },
+      { name: 'description', label: 'Description', maxLength: 255 },
+    ],
+  },
+
+  'fee-schedules': {
+    key: 'fee-schedules',
+    label: 'Fee Schedule',
+    singular: 'Scheduled Fee',
+    icon: 'Banknote',
+    // What a grade level owes for a school year. These amounts become a
+    // student's charges the moment they are enrolled.
+    displayName: (row) => `${row.fee_name} — ${row.grade_level_name} (${row.academic_year_name})`,
+    searchHint: 'fee or grade level',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be removed. Charges already applied to students stay as they are.`,
+    columns: [
+      { field: 'academic_year_name', label: 'School year', minWidth: 140 },
+      { field: 'grade_level_name', label: 'Grade level', minWidth: 160 },
+      { field: 'fee_name', label: 'Fee', minWidth: 170 },
+      {
+        field: 'amount',
+        label: 'Amount',
+        minWidth: 130,
+        value: (row) => formatCurrency(row.amount),
+      },
+    ],
+    fields: [
+      {
+        name: 'academic_year_id',
+        label: 'School year',
+        type: 'select',
+        required: true,
+        optionsSource: 'academicYears',
+      },
+      {
+        name: 'grade_level_id',
+        label: 'Grade level',
+        type: 'select',
+        required: true,
+        optionsSource: 'gradeLevels',
+      },
+      { name: 'fee_id', label: 'Fee', type: 'select', required: true, optionsSource: 'fees' },
+      { name: 'amount', label: 'Amount', type: 'number', required: true },
+    ],
+  },
+
+  downpayments: {
+    key: 'downpayments',
+    label: 'Downpayments',
+    singular: 'Downpayment',
+    icon: 'Banknote',
+    // The share of a grade level's total charges an accepted applicant must pay
+    // before the registrar can enroll them. Stored as a percent so it follows
+    // fee changes; a grade level with no row here requires nothing.
+    displayName: (row) => `${row.grade_level_name} (${row.academic_year_name})`,
+    searchHint: 'grade level or school year',
+    createsLoginAccount: false,
+    deleteMessage: (name) =>
+      `${name} will be removed, so that grade level will no longer require a downpayment.`,
+    columns: [
+      { field: 'academic_year_name', label: 'School year', minWidth: 140 },
+      { field: 'grade_level_name', label: 'Grade level', minWidth: 170 },
+      {
+        field: 'percentage',
+        label: 'Downpayment %',
+        minWidth: 130,
+        value: (row) => `${row.percentage}%`,
+      },
+      {
+        field: 'computed_amount',
+        label: 'Works out to',
+        minWidth: 170,
+        // The percent is the rule; this is what it currently produces, so the
+        // Super Admin can sanity-check it against the fee schedule.
+        value: (row) => `${formatCurrency(row.computed_amount)} of ${formatCurrency(row.total_charges)}`,
+      },
+    ],
+    fields: [
+      {
+        name: 'academic_year_id',
+        label: 'School year',
+        type: 'select',
+        required: true,
+        optionsSource: 'academicYears',
+      },
+      {
+        name: 'grade_level_id',
+        label: 'Grade level',
+        type: 'select',
+        required: true,
+        optionsSource: 'gradeLevels',
+      },
+      {
+        name: 'percentage',
+        label: 'Downpayment percent',
+        type: 'number',
+        required: true,
+        step: '0.01',
+      },
+    ],
+  },
+
   subjects: {
     key: 'subjects',
     label: 'Subjects',
@@ -459,7 +585,7 @@ export const ADMIN_NAV = [
     label: 'Users Management',
     icon: 'UsersRound',
     children: [
-      { to: '/admin/admissions', label: 'Admissions', icon: 'ClipboardList' },
+      { to: '/admin/admissions', label: 'Admissions', icon: 'ClipboardList', badge: 'admissions' },
       { to: '/admin/students', label: 'Students', icon: 'GraduationCap', minAccessLevel: 4 },
       { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
       { to: '/admin/parents', label: 'Parents', icon: 'Users' },
@@ -493,6 +619,16 @@ export const ADMIN_NAV = [
     label: 'Advisory Classes',
     icon: 'Users2',
     children: [{ to: '/admin/classes', label: 'Advisory Class', icon: 'Users2', minAccessLevel: 4 }],
+  },
+  {
+    key: 'finance',
+    label: 'Finance',
+    icon: 'Wallet',
+    children: [
+      { to: '/admin/fees', label: 'Fees', icon: 'Wallet', minAccessLevel: 4 },
+      { to: '/admin/fee-schedules', label: 'Fee Schedule', icon: 'Banknote', minAccessLevel: 4 },
+      { to: '/admin/downpayments', label: 'Downpayments', icon: 'Banknote', minAccessLevel: 4 },
+    ],
   },
   {
     key: 'communication',

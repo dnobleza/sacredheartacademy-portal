@@ -37,10 +37,12 @@ import {
   fetchAdmission,
   fetchAdmissionDocumentUrl,
   returnAdmission,
+  enrollAdmission,
   updateAdmissionStatus,
 } from '../../services/admissionsApi';
 import { extractErrorMessage } from '../../services/api';
 import { fetchSectionCapacity } from '../../services/enrollmentsApi';
+import { formatCurrency } from '../../utils/format';
 import { CARD_RADIUS } from '../../theme';
 
 const DASH = '—';
@@ -52,6 +54,7 @@ const STATUS_FILTERS = [
   { value: 'pending', label: 'Pending' },
   { value: 'reviewing', label: 'Reviewing' },
   { value: 'returned', label: 'Returned' },
+  { value: 'accepted', label: 'Accepted' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'enrolled', label: 'Enrolled' },
@@ -165,6 +168,7 @@ function AdmissionsPage() {
   const [sections, setSections] = useState([]);
   const [returnDraft, setReturnDraft] = useState(null);
   const [placement, setPlacement] = useState({ grade_level_id: '', section_id: '' });
+  const [confirmEnroll, setConfirmEnroll] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmAccept, setConfirmAccept] = useState(null);
@@ -261,19 +265,13 @@ function AdmissionsPage() {
     }
   };
 
-  const handleAccept = async (override = false) => {
+  const handleAccept = async () => {
     const application = confirmAccept;
     setConfirmAccept(null);
 
     const result = await runAction(
-      () =>
-        acceptAdmission(application.id, {
-          grade_level_id: Number(placement.grade_level_id),
-          section_id: Number(placement.section_id),
-          review_remarks: remarks || null,
-          ...(override ? { override: true } : {}),
-        }),
-      'Application approved, student enrolled.',
+      () => acceptAdmission(application.id, { review_remarks: remarks || null }),
+      'Application approved. The applicant can now pay.',
     );
 
     if (result) {
@@ -325,6 +323,24 @@ function AdmissionsPage() {
     if (result) {
       setSelected(result);
       setDetail((current) => (current ? { ...current, return_items: result.return_items } : current));
+    }
+  };
+
+  const handleEnroll = async (override = false) => {
+    const application = confirmEnroll;
+    setConfirmEnroll(null);
+
+    const result = await runAction(
+      () =>
+        enrollAdmission(application.id, {
+          ...(placement.section_id ? { section_id: Number(placement.section_id) } : {}),
+          ...(override ? { override: true } : {}),
+        }),
+      'Student enrolled.',
+    );
+
+    if (result) {
+      setSelected(result.application);
     }
   };
 
@@ -644,6 +660,37 @@ function AdmissionsPage() {
 
             <Typography sx={{ fontWeight: 800, mt: 3, mb: 1 }}>Review</Typography>
 
+            {selected.status === 'accepted' && (
+              <Box sx={{ mb: 2 }}>
+                {detail?.downpayment?.required ? (
+                  <Alert
+                    severity={detail.ready_to_enroll ? 'success' : 'warning'}
+                    sx={{ borderRadius: CARD_RADIUS }}
+                  >
+                    {detail.ready_to_enroll
+                      ? `Downpayment settled — ${formatCurrency(detail.downpayment.paid)} paid.`
+                      : `Awaiting downpayment — ${formatCurrency(detail.downpayment.paid)} of ${formatCurrency(
+                        detail.downpayment.required,
+                      )} paid.`}
+                  </Alert>
+                ) : (
+                  <Alert severity="info" sx={{ borderRadius: CARD_RADIUS }}>
+                    No downpayment is set for this grade level, so the student can be enrolled now.
+                  </Alert>
+                )}
+
+                <Button
+                  onClick={() => setConfirmEnroll(selected)}
+                  disabled={busy || (detail?.downpayment?.required > 0 && !detail?.ready_to_enroll)}
+                  variant="contained"
+                  size="small"
+                  sx={{ mt: 1.5, borderRadius: CARD_RADIUS, fontWeight: 700 }}
+                >
+                  Enroll student
+                </Button>
+              </Box>
+            )}
+
             {settled ? (
               <Alert severity="success" sx={{ borderRadius: CARD_RADIUS }}>
                 This application was accepted
@@ -727,72 +774,24 @@ function AdmissionsPage() {
       <Dialog open={Boolean(confirmAccept)} onClose={() => setConfirmAccept(null)}>
         <DialogTitle>Approve this application?</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
+          <DialogContentText>
             This creates a student account for {confirmAccept ? fullName(confirmAccept) : ''} using{' '}
-            {confirmAccept?.email}, enrolls them in the section you choose, and shows a temporary
-            password once.
+            {confirmAccept?.email}, applies their fees, and shows a temporary password once.
+            {detail?.downpayment?.required
+              ? ` They must pay ${formatCurrency(detail.downpayment.required)} before they can be enrolled.`
+              : ' They can be enrolled straight away — no downpayment is set for that grade level.'}
           </DialogContentText>
-
-          <Stack spacing={2}>
-            <TextField
-              select
-              label="Grade level"
-              value={placement.grade_level_id}
-              onChange={(event) =>
-                setPlacement({ grade_level_id: event.target.value, section_id: '' })
-              }
-              size="small"
-              fullWidth
-            >
-              {gradeLevelOptions.map((level) => (
-                <MenuItem key={level.id} value={level.id}>
-                  {level.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              label="Section"
-              value={placement.section_id}
-              onChange={(event) =>
-                setPlacement((current) => ({ ...current, section_id: event.target.value }))
-              }
-              helperText={
-                detail?.suggested_section
-                  ? `Suggested: ${detail.suggested_section.grade_level_name} ${detail.suggested_section.name}`
-                  : 'No section in that grade level has room — pick one to over-fill it.'
-              }
-              size="small"
-              fullWidth
-            >
-              {sectionOptions.length === 0 ? (
-                <MenuItem value="" disabled>
-                  No sections for that grade level
-                </MenuItem>
-              ) : (
-                sectionOptions.map((section) => (
-                  <MenuItem key={section.id} value={section.id}>
-                    {`${section.grade_level_name} · ${section.name} (${section.student_count}/${section.capacity})`}
-                    {Number(section.student_count) >= Number(section.capacity) ? ' · full' : ''}
-                  </MenuItem>
-                ))
-              )}
-            </TextField>
-          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmAccept(null)} sx={{ textTransform: 'none' }}>
             Cancel
           </Button>
           <Button
-            onClick={() => handleAccept(wouldOverfill)}
-            disabled={!placement.grade_level_id || !placement.section_id}
+            onClick={() => handleAccept()}
             variant="contained"
-            color={wouldOverfill ? 'warning' : 'primary'}
             sx={{ textTransform: 'none', fontWeight: 700 }}
           >
-            {wouldOverfill ? 'Over-fill and enroll' : 'Approve and enroll'}
+            Approve application
           </Button>
         </DialogActions>
       </Dialog>
@@ -863,6 +862,56 @@ function AdmissionsPage() {
         <DialogActions>
           <Button onClick={() => setCredentials(null)} variant="contained" sx={{ textTransform: 'none', fontWeight: 700 }}>
             Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(confirmEnroll)} onClose={() => setConfirmEnroll(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Enroll this student?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {confirmEnroll ? fullName(confirmEnroll) : ''} will be enrolled for{' '}
+            {confirmEnroll?.academic_year_name || 'the active school year'}. Leave the section on
+            Automatic to give them the first one with room.
+          </DialogContentText>
+
+          <TextField
+            select
+            label="Section"
+            value={placement.section_id}
+            onChange={(event) =>
+              setPlacement((current) => ({ ...current, section_id: event.target.value }))
+            }
+            size="small"
+            fullWidth
+            helperText={
+              detail?.suggested_section
+                ? `Automatic: ${detail.suggested_section.grade_level_name} ${detail.suggested_section.name}`
+                : 'No section in that grade level has room.'
+            }
+          >
+            <MenuItem value="">Automatic</MenuItem>
+            {sections
+              .filter((section) => section.grade_level_id === confirmEnroll?.grade_level_id)
+              .map((section) => (
+                <MenuItem key={section.id} value={section.id}>
+                  {`${section.grade_level_name} · ${section.name} (${section.student_count}/${section.capacity})`}
+                  {Number(section.student_count) >= Number(section.capacity) ? ' · full' : ''}
+                </MenuItem>
+              ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmEnroll(null)} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleEnroll(wouldOverfill)}
+            variant="contained"
+            color={wouldOverfill ? 'warning' : 'primary'}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            {wouldOverfill ? 'Over-fill and enroll' : 'Enroll'}
           </Button>
         </DialogActions>
       </Dialog>

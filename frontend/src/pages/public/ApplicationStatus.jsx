@@ -7,6 +7,9 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid2';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -18,11 +21,15 @@ import GradientButton from '../../components/common/GradientButton';
 import DocumentField from '../../components/landing/DocumentField';
 import { DOCUMENT_FIELDS } from '../../components/landing/AdmissionWizard';
 import {
+  declarePaymentForApplication,
+  fetchApplicationReceipt,
   fetchApplicationStatus,
   resubmitApplication,
 } from '../../services/publicApi';
+import Receipt from '../../components/common/Receipt';
+import { formatCurrency, PAYMENT_METHOD_LABELS } from '../../utils/format';
 import { extractErrorMessage } from '../../services/api';
-import { glass, AQUA } from '../../theme';
+import { AQUA, CARD_RADIUS, glass } from '../../theme';
 
 const CARD_BORDER = '1px solid rgba(22,59,56,0.12)';
 
@@ -44,9 +51,12 @@ const STATUS_COPY = {
     detail: 'The registrar needs something corrected before your application can move forward.',
   },
   accepted: {
-    label: 'Approved',
-    tone: 'success',
-    detail: 'Your application was approved. The school will contact you about enrollment.',
+    label: 'Approved — payment needed',
+    tone: 'warning',
+    detail:
+      'Your application was approved. Report your payment below once you have paid — the cashier '
+      + 'checks it and issues your receipt, then the registrar assigns your section. Earlier '
+      + 'payments get the earlier sections.',
   },
   enrolled: {
     label: 'Enrolled',
@@ -103,6 +113,13 @@ function ApplicationStatus() {
   const [replacements, setReplacements] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [resubmitted, setResubmitted] = useState(false);
+  const [payment, setPayment] = useState({ amount: '', method: 'gcash', reference_no: '', note: '' });
+  const [proof, setProof] = useState(null);
+  const [payError, setPayError] = useState('');
+  const [paySent, setPaySent] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payPlan, setPayPlan] = useState('downpayment');
+  const [receipt, setReceipt] = useState(null);
 
   const handleLookup = async (event) => {
     event.preventDefault();
@@ -119,11 +136,82 @@ function ApplicationStatus() {
       setData(result);
       setCorrections({});
       setReplacements({});
+      setPaySent(false);
+      setPayError('');
+      setProof(null);
+      setPayment({
+        amount: result.payment?.downpayment?.remaining
+          ? String(result.payment.downpayment.remaining)
+          : String(result.payment?.balance || ''),
+        method: 'gcash',
+        reference_no: '',
+        note: '',
+      });
+      setPayPlan(result.payment?.downpayment?.remaining ? 'downpayment' : 'full');
     } catch (requestError) {
       setData(null);
       setError(extractErrorMessage(requestError, 'Could not find that application.'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Picking a plan only fills the amount; the applicant can still type their
+  // own figure, which switches the toggle to neither.
+  const handlePlanChange = (event, next) => {
+    if (!next) {
+      return;
+    }
+
+    setPayPlan(next);
+
+    const info = data?.payment;
+
+    if (!info) {
+      return;
+    }
+
+    const value = next === 'full' ? info.balance : info.downpayment?.remaining || 0;
+    setPayment((current) => ({ ...current, amount: String(value) }));
+  };
+
+  const openReceipt = (paymentId) => {
+    fetchApplicationReceipt({
+      reference: lookup.reference.trim(),
+      email: lookup.email.trim(),
+      paymentId,
+    })
+      .then(setReceipt)
+      .catch(() => setPayError('Could not open that receipt.'));
+  };
+
+  const handleDeclarePayment = async (event) => {
+    event.preventDefault();
+    setPayError('');
+    setPaying(true);
+
+    try {
+      await declarePaymentForApplication({
+        reference: lookup.reference.trim(),
+        email: lookup.email.trim(),
+        fields: payment,
+        proof,
+      });
+
+      setPaySent(true);
+      setProof(null);
+
+      // Re-read so the page shows the report exactly as the server stored it.
+      const refreshed = await fetchApplicationStatus({
+        reference: lookup.reference.trim(),
+        email: lookup.email.trim(),
+      });
+
+      setData(refreshed);
+    } catch (requestError) {
+      setPayError(extractErrorMessage(requestError, 'Could not send that payment.'));
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -159,6 +247,7 @@ function ApplicationStatus() {
   };
 
   const application = data?.application;
+  const paymentInfo = data?.payment;
   const status = application ? STATUS_COPY[application.status] || STATUS_COPY.pending : null;
   const returnItems = data?.return_items || [];
   const documentItems = returnItems.filter((item) => item.item_type === 'document');
@@ -195,7 +284,7 @@ function ApplicationStatus() {
           Enter the reference number from your application together with the email address you used.
         </Typography>
 
-        <Paper elevation={0} sx={{ ...glass, borderRadius: 4, p: 3, mb: 4 }}>
+        <Paper elevation={0} sx={{ ...glass, borderRadius: CARD_RADIUS, p: 3, mb: 4 }}>
           <Box component="form" onSubmit={handleLookup} noValidate>
             <Grid container spacing={2} alignItems="center">
               <Grid size={{ xs: 12, sm: 5 }}>
@@ -228,20 +317,20 @@ function ApplicationStatus() {
         </Paper>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
             {error}
           </Alert>
         )}
 
         {resubmitted && (
-          <Alert severity="success" icon={<CheckCircle2 size={20} />} sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="success" icon={<CheckCircle2 size={20} />} sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
             Thank you — your corrections are with the registrar.
           </Alert>
         )}
 
         {application && (
           <Stack spacing={3}>
-            <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
+            <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
                 <Box>
                   <Typography variant="h5">{application.reference_number}</Typography>
@@ -259,7 +348,7 @@ function ApplicationStatus() {
                 />
               </Stack>
 
-              <Alert severity={status.tone} sx={{ mt: 2, borderRadius: 2 }}>
+              <Alert severity={status.tone} sx={{ mt: 2, borderRadius: CARD_RADIUS }}>
                 {status.detail}
               </Alert>
 
@@ -281,7 +370,7 @@ function ApplicationStatus() {
               )}
             </Paper>
 
-            <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
+            <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
               <Typography sx={{ fontWeight: 800, mb: 1.5 }}>Documents on file</Typography>
 
               <Stack spacing={1}>
@@ -314,8 +403,253 @@ function ApplicationStatus() {
               </Stack>
             </Paper>
 
+            {application.status === 'accepted' && paymentInfo && (
+              <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
+                <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Payment</Typography>
+
+                {paymentInfo.charges?.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                      Your charges
+                    </Typography>
+
+                    {paymentInfo.charges.map((charge) => (
+                      <Stack
+                        key={charge.id}
+                        direction="row"
+                        justifyContent="space-between"
+                        sx={{ py: 0.4 }}
+                      >
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {charge.fee_name}
+                          {charge.paid > 0 ? ` · ${formatCurrency(charge.paid)} paid` : ''}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {formatCurrency(charge.amount)}
+                        </Typography>
+                      </Stack>
+                    ))}
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      sx={{ borderTop: CARD_BORDER, mt: 1, pt: 1 }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                        Total charges
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                        {formatCurrency(paymentInfo.total_charges)}
+                      </Typography>
+                    </Stack>
+
+                    <Stack direction="row" justifyContent="space-between" sx={{ py: 0.4 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Paid so far
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {formatCurrency(paymentInfo.total_paid)}
+                      </Typography>
+                    </Stack>
+
+                    <Stack direction="row" justifyContent="space-between" sx={{ py: 0.4 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                        Balance
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.dark' }}>
+                        {formatCurrency(paymentInfo.balance)}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+
+                {paymentInfo.downpayment?.required > 0 ? (
+                  <Alert severity="info" sx={{ mb: 2, borderRadius: CARD_RADIUS }}>
+                    Downpayment is{' '}
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      {paymentInfo.downpayment.percentage}% of{' '}
+                      {formatCurrency(paymentInfo.downpayment.total_charges)}
+                    </Box>{' '}
+                    = {formatCurrency(paymentInfo.downpayment.required)} ·{' '}
+                    {formatCurrency(paymentInfo.downpayment.paid)} paid ·{' '}
+                    {formatCurrency(paymentInfo.downpayment.remaining)} remaining
+                  </Alert>
+                ) : (
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                    No downpayment is required for your grade level. Your balance is{' '}
+                    {formatCurrency(paymentInfo.balance)}.
+                  </Typography>
+                )}
+
+                {payError && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: CARD_RADIUS }} onClose={() => setPayError('')}>
+                    {payError}
+                  </Alert>
+                )}
+
+                {paySent && (
+                  <Alert severity="success" sx={{ mb: 2, borderRadius: CARD_RADIUS }}>
+                    Sent to the cashier. Check back here for your official receipt.
+                  </Alert>
+                )}
+
+                {paymentInfo.has_pending ? (
+                  <Alert severity="info" sx={{ borderRadius: CARD_RADIUS }}>
+                    Your payment is waiting for the cashier to confirm. You can send another once
+                    they have acted on it.
+                  </Alert>
+                ) : (
+                  <Box component="form" onSubmit={handleDeclarePayment}>
+                    {/* Two ways to settle: the whole balance (cash basis) or
+                        just the downpayment that unlocks enrollment. Either
+                        fills the amount below, which stays editable. */}
+                    <ToggleButtonGroup
+                      value={payPlan}
+                      exclusive
+                      onChange={handlePlanChange}
+                      size="small"
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    >
+                      <ToggleButton value="full" sx={{ fontWeight: 700, textTransform: 'none' }}>
+                        Pay in full · {formatCurrency(paymentInfo.balance)}
+                      </ToggleButton>
+                      <ToggleButton
+                        value="downpayment"
+                        disabled={!paymentInfo.downpayment?.remaining}
+                        sx={{ fontWeight: 700, textTransform: 'none' }}
+                      >
+                        Downpayment · {formatCurrency(paymentInfo.downpayment?.remaining || 0)}
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          value={payment.amount}
+                          onChange={(event) => setPayment((c) => ({ ...c, amount: event.target.value }))}
+                          label="Amount paid"
+                          type="number"
+                          size="small"
+                          fullWidth
+                          required
+                          inputProps={{ step: '0.01', min: '0' }}
+                          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          select
+                          value={payment.method}
+                          onChange={(event) => setPayment((c) => ({ ...c, method: event.target.value }))}
+                          label="How did you pay?"
+                          size="small"
+                          fullWidth
+                        >
+                          {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                            <MenuItem key={value} value={value}>
+                              {label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          value={payment.reference_no}
+                          onChange={(event) => setPayment((c) => ({ ...c, reference_no: event.target.value }))}
+                          label="Reference number"
+                          size="small"
+                          fullWidth
+                          helperText="Your GCash or bank reference, if you have one"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          value={payment.note}
+                          onChange={(event) => setPayment((c) => ({ ...c, note: event.target.value }))}
+                          label="Note (optional)"
+                          size="small"
+                          fullWidth
+                        />
+                      </Grid>
+
+                      <Grid size={12}>
+                        <DocumentField
+                          name="proof"
+                          label="Proof of payment"
+                          hint="Optional · a screenshot or photo of the receipt"
+                          value={proof}
+                          error={undefined}
+                          onChange={(name, file) => setProof(file)}
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2 }}>
+                      <GradientButton type="submit" disabled={paying || !payment.amount} fullWidth={false}>
+                        {paying ? 'Sending…' : 'Report payment'}
+                      </GradientButton>
+                      {paying && <CircularProgress size={22} aria-label="Sending" />}
+                    </Stack>
+                  </Box>
+                )}
+
+                {paymentInfo.declarations.length > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                      Payments you reported
+                    </Typography>
+                    <Stack spacing={1}>
+                      {paymentInfo.declarations.map((row) => (
+                        <Stack key={row.id} direction="row" alignItems="center" spacing={1.5}>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {formatCurrency(row.amount)} ·{' '}
+                              {PAYMENT_METHOD_LABELS[row.method] || row.method}
+                              {row.or_number ? ` · ${row.or_number}` : ''}
+                            </Typography>
+                            {row.review_remarks && (
+                              <Typography variant="caption" sx={{ color: 'error.main' }}>
+                                {row.review_remarks}
+                              </Typography>
+                            )}
+                          </Box>
+                          <Chip
+                            size="small"
+                            label={row.status}
+                            color={
+                              row.status === 'confirmed'
+                                ? 'success'
+                                : row.status === 'rejected'
+                                  ? 'error'
+                                  : 'warning'
+                            }
+                            sx={{ ml: 'auto', textTransform: 'capitalize', fontWeight: 700 }}
+                          />
+
+                          {row.status === 'confirmed' && row.payment_id && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openReceipt(row.payment_id)}
+                              sx={{ fontWeight: 700, flexShrink: 0 }}
+                            >
+                              Receipt
+                            </Button>
+                          )}
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+              </Paper>
+            )}
+
             {application.status === 'returned' && (
-              <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
+              <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}>
                 <Typography sx={{ fontWeight: 800, mb: 0.5 }}>What needs fixing</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                   Correct the items below and send them back. Everything else stays as it is.
@@ -392,7 +726,7 @@ function ApplicationStatus() {
                 )}
 
                 {lockedItems.length > 0 && (
-                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: CARD_RADIUS }}>
                     The registrar also flagged{' '}
                     {lockedItems.map((item) => FIELD_LABELS[item.item_key] || item.item_key).join(', ')}
                     . Please contact the school office about that — it cannot be changed here.
@@ -413,6 +747,7 @@ function ApplicationStatus() {
             )}
           </Stack>
         )}
+        <Receipt open={Boolean(receipt)} onClose={() => setReceipt(null)} receipt={receipt} />
       </Container>
     </Box>
   );

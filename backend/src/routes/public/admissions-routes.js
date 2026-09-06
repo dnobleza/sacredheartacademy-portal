@@ -1,7 +1,11 @@
 const express = require('express');
 const asyncHandler = require('../../utils/async-handler');
 const admissionsController = require('../../controllers/public/admissions-controller');
-const { admissionLimiter, admissionLookupLimiter } = require('../../middleware/rate-limiters');
+const {
+  admissionLimiter,
+  admissionLookupLimiter,
+  paymentDeclarationLimiter,
+} = require('../../middleware/rate-limiters');
 const { uploadDocuments } = require('../../middleware/upload');
 const { DOCUMENT_TYPES } = require('../../validations/admission-validation');
 
@@ -30,6 +34,27 @@ router.post(
   admissionLimiter,
   uploadDocuments(DOCUMENT_TYPES),
   asyncHandler(admissionsController.resubmitApplication),
+);
+
+
+
+
+
+router.post(
+  '/:reference/declare-payment',
+  paymentDeclarationLimiter,
+  uploadDocuments(['proof']),
+  asyncHandler(admissionsController.declarePaymentForApplication),
+);
+
+
+
+
+
+router.get(
+  '/:reference/receipt/:paymentId',
+  admissionLookupLimiter,
+  asyncHandler(admissionsController.getPaymentReceipt),
 );
 
 router.get('/academic-years', asyncHandler(admissionsController.listAcademicYears));

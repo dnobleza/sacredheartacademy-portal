@@ -3,6 +3,11 @@ const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendCreated, sendOk } = require('../../utils/send-response');
 const { notifyRoles } = require('../../utils/notifications');
+const {
+  buildStudentAccount,
+  getDownpaymentRequirement,
+} = require('../../utils/billing');
+const { createDeclaration } = require('../shared/declarations-controller');
 const path = require('path');
 const { collectFiles, discardFiles, UPLOAD_DIR } = require('../../middleware/upload');
 const {
@@ -262,6 +267,8 @@ const findApplicationByReference = async (reference, email) => {
        admission_applications.review_remarks,
        admission_applications.returned_at,
        admission_applications.created_at,
+       admission_applications.student_id,
+       admission_applications.academic_year_id,
        grade_levels.name AS grade_level_name,
        academic_years.name AS academic_year_name
      FROM admission_applications
@@ -301,6 +308,31 @@ const findDocumentTypes = async (applicationId) => {
 
 
 
+const findDeclarations = async (studentId) => {
+  const [rows] = await pool.execute(
+    `SELECT
+       payment_declarations.id,
+       payment_declarations.amount,
+       payment_declarations.method,
+       payment_declarations.reference_no,
+       payment_declarations.status,
+       payment_declarations.payment_id,
+       payment_declarations.review_remarks,
+       payment_declarations.created_at,
+       payments.or_number
+     FROM payment_declarations
+     LEFT JOIN payments ON payments.id = payment_declarations.payment_id
+     WHERE payment_declarations.student_id = ?
+     ORDER BY payment_declarations.created_at DESC`,
+    [studentId],
+  );
+
+  return rows.map((row) => ({ ...row, amount: Number(row.amount) }));
+};
+
+
+
+
 const getApplicationStatus = async (req, res) => {
   const application = await findApplicationByReference(req.query.reference, req.query.email);
 
@@ -317,10 +349,38 @@ const getApplicationStatus = async (req, res) => {
 
 
 
-  const { id, ...safeApplication } = application;
+  let payment = null;
+
+  if (application.student_id && application.academic_year_id) {
+    const [downpayment, account, declarations] = await Promise.all([
+      getDownpaymentRequirement(application.student_id, application.academic_year_id),
+      buildStudentAccount(application.student_id, application.academic_year_id),
+      findDeclarations(application.student_id),
+    ]);
+
+    payment = {
+      downpayment,
+      charges: account ? account.charges : [],
+      balance: account ? account.totals.balance : 0,
+      total_charges: account ? account.totals.total_charges : 0,
+      total_paid: account ? account.totals.total_paid : 0,
+      declarations,
+      has_pending: declarations.some((row) => row.status === 'pending'),
+    };
+  }
+
+
+
+  const {
+    id,
+    student_id: hiddenStudentId,
+    academic_year_id: hiddenYearId,
+    ...safeApplication
+  } = application;
 
   return sendOk(res, {
     application: safeApplication,
+    payment,
     documents,
     required_documents: REQUIREMENTS_BY_TYPE[application.enrollment_type] || [],
     missing_documents: missingRequirements(application.enrollment_type, presentTypes),
@@ -496,6 +556,155 @@ const resubmitApplication = async (req, res) => {
   });
 };
 
+const getPaymentReceipt = async (req, res) => {
+  const application = await findApplicationByReference(req.params.reference, req.query.email);
+
+  if (!application) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, NOT_FOUND_MESSAGE);
+  }
+
+  const paymentId = Number(req.params.paymentId);
+
+  if (!Number.isInteger(paymentId) || paymentId < 1) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid payment id.');
+  }
+
+
+
+
+  const [rows] = await pool.execute(
+    `SELECT
+       payments.id,
+       payments.or_number,
+       payments.amount,
+       payments.payment_type,
+       payments.method,
+       payments.reference_no,
+       payments.paid_at,
+       payments.academic_year_id,
+       academic_years.name AS academic_year_name,
+       students.student_number,
+       students.first_name,
+       students.middle_name,
+       students.last_name,
+       CONCAT_WS(' ', cashiers.first_name, cashiers.last_name) AS cashier_name
+     FROM payments
+     JOIN students ON students.id = payments.student_id
+     LEFT JOIN academic_years ON academic_years.id = payments.academic_year_id
+     LEFT JOIN admins AS cashiers ON cashiers.id = payments.cashier_id
+     WHERE payments.id = ? AND payments.student_id = ?`,
+    [paymentId, application.student_id],
+  );
+
+  if (rows.length === 0) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Receipt not found.');
+  }
+
+  const [items] = await pool.execute(
+    `SELECT payment_items.fee_id, fees.name AS fee_name, payment_items.amount
+     FROM payment_items
+     JOIN fees ON fees.id = payment_items.fee_id
+     WHERE payment_items.payment_id = ?
+     ORDER BY fees.id`,
+    [paymentId],
+  );
+
+  const account = await buildStudentAccount(application.student_id, rows[0].academic_year_id);
+
+  return sendOk(res, {
+    payment: { ...rows[0], amount: Number(rows[0].amount) },
+    items: items.map((item) => ({ ...item, amount: Number(item.amount) })),
+    balance_after: account ? account.totals.balance : null,
+    total_charges: account ? account.totals.total_charges : null,
+  });
+};
+
+
+
+
+const declarePaymentForApplication = async (req, res) => {
+  const uploadedFiles = collectFiles(req);
+  const application = await findApplicationByReference(req.params.reference, req.body.email);
+
+  if (!application) {
+    discardFiles(uploadedFiles);
+    return sendError(res, HTTP_STATUS.NOT_FOUND, NOT_FOUND_MESSAGE);
+  }
+
+
+
+
+  if (application.status !== 'accepted' || !application.student_id) {
+    discardFiles(uploadedFiles);
+    return sendError(
+      res,
+      HTTP_STATUS.CONFLICT,
+      'Payments can only be reported once your application has been approved.',
+    );
+  }
+
+  if (!application.academic_year_id) {
+    discardFiles(uploadedFiles);
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'This application has no school year.');
+  }
+
+
+
+
+  const [[student]] = await pool.execute('SELECT user_id FROM students WHERE id = ?', [
+    application.student_id,
+  ]);
+
+  let proofImageId = null;
+  const proof = (req.files && req.files.proof && req.files.proof[0]) || null;
+
+  if (proof) {
+    const [image] = await pool.execute(
+      `INSERT INTO images (filename, original_name, mime_type, size_bytes, uploaded_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        proof.filename,
+        proof.originalname ? proof.originalname.slice(0, 255) : null,
+        proof.mimetype,
+        proof.size,
+        student.user_id,
+      ],
+    );
+
+    proofImageId = image.insertId;
+  }
+
+  const { error, declaration } = await createDeclaration({
+    studentId: application.student_id,
+    academicYearId: application.academic_year_id,
+    amount: req.body.amount,
+    method: req.body.method,
+    referenceNo: req.body.reference_no,
+    note: req.body.note,
+    proofImageId,
+  });
+
+  if (error) {
+
+
+    if (proofImageId) {
+      await pool.execute('DELETE FROM images WHERE id = ?', [proofImageId]);
+    }
+
+    discardFiles(uploadedFiles);
+    return sendError(res, error.status, error.message);
+  }
+
+  logger.info(
+    `Payment declared from the status page for application ${application.reference_number}`,
+  );
+
+  return sendCreated(res, declaration);
+};
+
+
+
+
 const listAcademicYears = async (req, res) => {
   const [rows] = await pool.execute(
     `SELECT id, name, start_date, end_date, status
@@ -519,6 +728,8 @@ const listGradeLevels = async (req, res) => {
 
 module.exports = {
   createApplication,
+  getPaymentReceipt,
+  declarePaymentForApplication,
   listAcademicYears,
   listGradeLevels,
   getApplicationStatus,

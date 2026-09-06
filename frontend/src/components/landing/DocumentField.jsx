@@ -5,6 +5,7 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { FileText, Upload, X } from 'lucide-react';
+import { CARD_RADIUS } from '../../theme';
 
 // Mirrors the server's allowlist in backend/src/middleware/upload.js. The
 // server rejects anything else regardless; this only saves a wasted upload.
@@ -57,7 +58,7 @@ function DocumentField({ name, label, hint, value, error, onChange }) {
   return (
     <Box
       sx={{
-        borderRadius: 3,
+        borderRadius: CARD_RADIUS,
         border: '1px solid',
         borderColor: error ? 'error.main' : 'rgba(22,59,56,0.12)',
         p: 2,
@@ -108,7 +109,7 @@ function DocumentField({ name, label, hint, value, error, onChange }) {
           variant="outlined"
           startIcon={<Upload size={16} />}
           onClick={() => inputRef.current?.click()}
-          sx={{ borderRadius: 2, fontWeight: 700 }}
+          sx={{ borderRadius: CARD_RADIUS, fontWeight: 700 }}
         >
           Choose file
         </Button>

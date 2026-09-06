@@ -14,7 +14,9 @@ export const REGISTRAR_NAV = [
     key: 'admissions',
     label: 'Admissions',
     icon: 'ClipboardList',
-    children: [{ to: '/registrar/admissions', label: 'Applications', icon: 'ClipboardList' }],
+    children: [
+      { to: '/registrar/admissions', label: 'Applications', icon: 'ClipboardList', badge: 'admissions' },
+    ],
   },
   {
     key: 'enrollment',

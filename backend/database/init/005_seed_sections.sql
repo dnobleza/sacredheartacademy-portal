@@ -17,11 +17,11 @@
 
 LOCK TABLES `sections` WRITE;
 /*!40000 ALTER TABLE `sections` DISABLE KEYS */;
-INSERT INTO `sections` VALUES (1,1,'Section A','Room 101','2026-09-04 00:00:00','2026-09-04 00:00:00');
-INSERT INTO `sections` VALUES (2,2,'Section A','Room 102','2026-09-04 00:00:00','2026-09-04 00:00:00');
-INSERT INTO `sections` VALUES (3,3,'Section A','Room 201','2026-09-04 00:00:00','2026-09-04 00:00:00');
-INSERT INTO `sections` VALUES (4,4,'Section A','Room 301','2026-09-04 00:00:00','2026-09-04 00:00:00');
-INSERT INTO `sections` VALUES (5,5,'Section A','Room 401','2026-09-04 00:00:00','2026-09-04 00:00:00');
+INSERT INTO `sections` (`id`,`grade_level_id`,`name`,`room`,`created_at`,`updated_at`) VALUES (1,1,'Section A','Room 101','2026-09-04 00:00:00','2026-09-04 00:00:00');
+INSERT INTO `sections` (`id`,`grade_level_id`,`name`,`room`,`created_at`,`updated_at`) VALUES (2,2,'Section A','Room 102','2026-09-04 00:00:00','2026-09-04 00:00:00');
+INSERT INTO `sections` (`id`,`grade_level_id`,`name`,`room`,`created_at`,`updated_at`) VALUES (3,3,'Section A','Room 201','2026-09-04 00:00:00','2026-09-04 00:00:00');
+INSERT INTO `sections` (`id`,`grade_level_id`,`name`,`room`,`created_at`,`updated_at`) VALUES (4,4,'Section A','Room 301','2026-09-04 00:00:00','2026-09-04 00:00:00');
+INSERT INTO `sections` (`id`,`grade_level_id`,`name`,`room`,`created_at`,`updated_at`) VALUES (5,5,'Section A','Room 401','2026-09-04 00:00:00','2026-09-04 00:00:00');
 /*!40000 ALTER TABLE `sections` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

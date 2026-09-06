@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { LogOut } from 'lucide-react';
 import Logo from '../components/common/Logo';
+import NotificationBell from '../components/common/NotificationBell';
 import { useAuth } from '../context/AuthContext';
 import { roleLabel } from '../utils/roles';
 import { glass, AQUA } from '../theme';
@@ -71,6 +72,10 @@ function DashboardLayout({ title, description, children }) {
                   {user?.email}
                 </Typography>
               </Box>
+
+              {/* Students and parents get notifications too — being told to
+                  pay a downpayment is useless if nothing surfaces it. */}
+              <NotificationBell />
 
               <Chip
                 label={roleLabel(user?.role)}

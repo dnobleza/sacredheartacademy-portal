@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import IconButton from '@mui/material/IconButton';
 import Grid from '@mui/material/Grid2';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { ArrowRight, CalendarDays } from 'lucide-react';
+import { ArrowRight, CalendarDays, X } from 'lucide-react';
 import Section from '../common/Section';
 import SectionHeading from '../common/SectionHeading';
 import GlassCard from '../common/GlassCard';
 import Reveal from '../common/Reveal';
 import { news, school } from '../../data/landing';
 import { fetchPublicAnnouncements, publicAnnouncementImageUrl } from '../../services/publicApi';
+import { CARD_RADIUS } from '../../theme';
 
 const formatDate = (value) =>
   new Date(value).toLocaleDateString(undefined, { dateStyle: 'long' });
@@ -41,6 +45,9 @@ function News() {
   // Falls back to the hand-written items when nothing is published yet, or when
   // the request fails — a backend outage must not blank the marketing page.
   const [cards, setCards] = useState(staticCards);
+  // The card clamps a long body to three lines so one post cannot stretch its
+  // row; Read More opens the whole thing rather than truncating it away.
+  const [opened, setOpened] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +88,9 @@ function News() {
                   display: 'flex',
                   flexDirection: 'column',
                   background: 'rgba(255,255,255,0.72)',
+                  // glass carries borderRadius 4, which the theme multiplies to
+                  // 80px and a browser clamps to half the card — a capsule.
+                  borderRadius: CARD_RADIUS,
                 }}
               >
                 <Box sx={{ aspectRatio: '7 / 4.6', overflow: 'hidden' }}>
@@ -142,14 +152,23 @@ function News() {
                   </Typography>
 
                   <Button
-                    href="#news"
+                    onClick={() => setOpened(item)}
                     endIcon={<ArrowRight size={17} />}
                     sx={{
                       mt: 2.5,
-                      px: 0,
                       alignSelf: 'flex-start',
                       color: 'primary.dark',
-                      '&:hover': { background: 'transparent' },
+                      // The theme gives every button a 999 pill and a 64px
+                      // minWidth. On a bare text link that makes the hover and
+                      // ripple a wide capsule floating around the words, so the
+                      // box is shrunk to the text and the negative margin keeps
+                      // the label flush with the card's left edge.
+                      minWidth: 0,
+                      px: 1,
+                      py: 0.5,
+                      ml: -1,
+                      borderRadius: CARD_RADIUS,
+                      '&:hover': { backgroundColor: 'primary.light' },
                     }}
                     aria-label={`Read more: ${item.title}`}
                   >
@@ -161,6 +180,75 @@ function News() {
           </Grid>
         ))}
       </Grid>
+
+      <Dialog
+        open={Boolean(opened)}
+        onClose={() => setOpened(null)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: CARD_RADIUS } } }}
+        aria-labelledby="news-dialog-title"
+      >
+        {opened && (
+          <>
+            <Box sx={{ position: 'relative' }}>
+              <Box
+                component="img"
+                src={opened.image.src}
+                alt={opened.image.alt}
+                sx={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'cover' }}
+              />
+              <IconButton
+                onClick={() => setOpened(null)}
+                aria-label="Close"
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  '&:hover': { backgroundColor: '#FFFFFF' },
+                }}
+              >
+                <X size={18} />
+              </IconButton>
+            </Box>
+
+            <DialogContent>
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.75 }}>
+                <Chip
+                  label={opened.category}
+                  size="small"
+                  sx={{
+                    backgroundColor: 'primary.light',
+                    color: 'primary.dark',
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    letterSpacing: '0.04em',
+                  }}
+                />
+                <Stack direction="row" spacing={0.6} alignItems="center">
+                  <Box aria-hidden="true" sx={{ display: 'flex', color: 'text.secondary' }}>
+                    <CalendarDays size={14} />
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {opened.date}
+                  </Typography>
+                </Stack>
+              </Stack>
+
+              <Typography id="news-dialog-title" variant="h3" component="h3" sx={{ fontSize: '1.35rem', mb: 1.5 }}>
+                {opened.title}
+              </Typography>
+
+              {/* Plain text typed by an admin — rendered as text, never as
+                  markup, so a pasted tag cannot execute. */}
+              <Typography variant="body1" sx={{ color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
+                {opened.body}
+              </Typography>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
     </Section>
   );
 }

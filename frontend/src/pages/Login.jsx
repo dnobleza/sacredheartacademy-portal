@@ -16,7 +16,7 @@ import GradientButton from '../components/common/GradientButton';
 import { useAuth } from '../context/AuthContext';
 import { extractErrorMessage } from '../services/api';
 import { portalHome } from '../utils/roles';
-import { glass, AQUA } from '../theme';
+import { AQUA, CARD_RADIUS, glass } from '../theme';
 import { school } from '../data/landing';
 
 // Mirrors backend/src/validations/auth-validation.js. The server validates
@@ -117,7 +117,7 @@ function Login() {
           </Stack>
 
           {formError && (
-            <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
               {formError}
             </Alert>
           )}

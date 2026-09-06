@@ -216,6 +216,9 @@ function ResourceFormDialog({
                   required={field.required}
                   multiline={field.multiline}
                   minRows={field.multiline ? 2 : undefined}
+                  // A native number input defaults to step=1, which rejects a
+                  // money amount like 1500.50 — fields declare their own step.
+                  inputProps={field.type === 'number' ? { step: field.step || '0.01', min: field.min ?? 0 } : undefined}
                   disabled={submitting}
                   fullWidth
                   slotProps={

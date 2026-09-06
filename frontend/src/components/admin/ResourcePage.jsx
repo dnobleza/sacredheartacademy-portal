@@ -168,6 +168,10 @@ function ResourcePage({ resource }) {
         listResource('academic-years', { page: 1, limit: 100 }).then((data) =>
           data.items.map((row) => ({ value: row.id, label: row.name })),
         ),
+      fees: () =>
+        listResource('fees', { page: 1, limit: 100 }).then((data) =>
+          data.items.map((row) => ({ value: row.id, label: row.name })),
+        ),
       teachers: () =>
         listResource('teachers', { page: 1, limit: 100 }).then((data) =>
           data.items.map((row) => ({
