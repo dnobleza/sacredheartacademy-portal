@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -9,6 +10,7 @@ import DashboardLayout from '../../layouts/DashboardLayout';
 import StudentAccountPanel from '../../components/cashier/StudentAccountPanel';
 import { fetchChildAccount, fetchMyChildren } from '../../services/financialApi';
 import { extractErrorMessage } from '../../services/api';
+import { UserCircle } from 'lucide-react';
 import { CARD_RADIUS } from '../../theme';
 
 const childName = (child) =>
@@ -77,6 +79,16 @@ function ParentDashboard() {
       title="Parent portal"
       description="Your children's financial accounts for the current school year."
     >
+      <Button
+        component={RouterLink}
+        to="/parent/profile"
+        startIcon={<UserCircle size={16} />}
+        variant="outlined"
+        sx={{ mb: 3, borderRadius: CARD_RADIUS, textTransform: 'none', fontWeight: 700 }}
+      >
+        My profile
+      </Button>
+
       {error && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
           {error}

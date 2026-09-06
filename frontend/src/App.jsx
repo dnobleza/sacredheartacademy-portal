@@ -46,8 +46,21 @@ import ComingSoon from './pages/teacher/ComingSoon';
 import TeacherClasses from './pages/teacher/Classes';
 import TeacherProfile from './pages/teacher/Profile';
 import TeacherAdvisoryStudents from './pages/teacher/AdvisoryStudents';
-import StudentDashboard from './pages/dashboard/StudentDashboard';
+import StudentLayout from './layouts/StudentLayout';
+import StudentOverview from './pages/student/Overview';
+import StudentProfile from './pages/student/Profile';
+import StudentClasses from './pages/student/Classes';
+import StudentSchedule from './pages/student/Schedule';
+import StudentGrades from './pages/student/Grades';
+import StudentAttendance from './pages/student/Attendance';
+import StudentAnnouncements from './pages/student/Announcements';
+import StudentBilling from './pages/student/Billing';
+import SharedComingSoon from './pages/shared/ComingSoon';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
+import ParentProfile from './pages/parent/Profile';
+
+const ELEARNING_NOTE =
+  'E-Learning is still being built. Your assignments appear on the dashboard in the meantime.';
 
 function App() {
   return (
@@ -133,11 +146,45 @@ function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['student']} />}>
-        <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/student" element={<StudentLayout />}>
+          <Route index element={<StudentOverview />} />
+          <Route path="profile" element={<StudentProfile />} />
+          <Route path="classes" element={<StudentClasses />} />
+          <Route path="schedule" element={<StudentSchedule />} />
+
+          {/* E-Learning: the sidebar tree is complete, but courses, lessons,
+              quizzes and exams have no tables yet, so these land on an honest
+              placeholder rather than 404ing. */}
+          <Route
+            path="courses"
+            element={<SharedComingSoon title="My Courses" note={ELEARNING_NOTE} />}
+          />
+          <Route path="lessons" element={<SharedComingSoon title="Lessons" note={ELEARNING_NOTE} />} />
+          <Route
+            path="materials"
+            element={<SharedComingSoon title="Learning Materials" note={ELEARNING_NOTE} />}
+          />
+          <Route
+            path="assignments"
+            element={<SharedComingSoon title="Assignments" note={ELEARNING_NOTE} />}
+          />
+          <Route path="quizzes" element={<SharedComingSoon title="Quizzes" note={ELEARNING_NOTE} />} />
+          <Route path="exams" element={<SharedComingSoon title="Exams" note={ELEARNING_NOTE} />} />
+
+          <Route path="grades" element={<StudentGrades />} />
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="billing" element={<StudentBilling />} />
+          <Route path="announcements" element={<StudentAnnouncements />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="documents" element={<SharedComingSoon title="Documents" />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="settings" element={<SharedComingSoon title="Settings" />} />
+        </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
         <Route path="/parent" element={<ParentDashboard />} />
+        <Route path="/parent/profile" element={<ParentProfile />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

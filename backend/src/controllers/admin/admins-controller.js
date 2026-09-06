@@ -10,6 +10,7 @@ const {
   validatePagination,
   normalizePhone,
 } = require('../../validations/admin-validation');
+const { SELF_UPDATE_FIELDS } = require('../shared/profile-controller');
 const { ACCESS_LEVELS } = require('../../utils/access-levels');
 
 const ADMIN_ROLE_ID = 1;
@@ -308,6 +309,24 @@ const updateAdmin = async (req, res) => {
       HTTP_STATUS.FORBIDDEN,
       'Only a Super Admin can edit another admin account.',
     );
+  }
+
+  // A non-Super-Admin editing their own record gets the same three fields the
+  // shared self-service profile allows. Names, employee number and email are
+  // registrar records; a Super Admin still edits anyone's in full, since
+  // managing accounts is their job.
+  if (req.user.accessLevel !== ACCESS_LEVELS.SUPER_ADMIN) {
+    const readOnly = Object.keys(req.body || {}).filter(
+      (field) => !SELF_UPDATE_FIELDS.includes(field),
+    );
+
+    if (readOnly.length > 0) {
+      return sendError(
+        res,
+        HTTP_STATUS.FORBIDDEN,
+        `Only a Super Admin can change: ${readOnly.join(', ')}.`,
+      );
+    }
   }
 
   

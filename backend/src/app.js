@@ -83,7 +83,7 @@ app.use('/api/v1/admin/downpayments', require('./routes/admin/downpayments-route
 app.use('/api/v1/admin/enrollments', require('./routes/admin/enrollments-routes'));
 app.use('/api/v1/admin/registrar-dashboard', require('./routes/admin/registrar-dashboard-routes'));
 app.use('/api/v1/cashier', require('./routes/cashier/index-routes'));
-app.use('/api/v1/student', require('./routes/students/financial-routes'));
+app.use('/api/v1/student', require('./routes/students/index-routes'));
 app.use('/api/v1/parent', require('./routes/parents/financial-routes'));
 app.use('/api/v1/teacher/dashboard', require('./routes/teachers/dashboard-routes'));
 app.use('/api/v1/teacher/classes', require('./routes/teachers/classes-routes'));
@@ -91,6 +91,7 @@ app.use('/api/v1/teacher/profile', require('./routes/teachers/profile-routes'));
 
 app.use('/api/v1/admissions', require('./routes/public/admissions-routes'));
 app.use('/api/v1/announcements', require('./routes/public/announcements-routes'));
+app.use('/api/v1/profile', require('./routes/shared/profile-routes'));
 app.use('/api/v1/messages', require('./routes/shared/messages-routes'));
 app.use('/api/v1/notifications', require('./routes/shared/notifications-routes'));
 app.use('/api/v1/images', require('./routes/shared/images-routes'));

@@ -24,15 +24,10 @@ const TEACHER_SELECT_FIELDS = `
 `;
 
 
-const SELF_UPDATE_FIELDS = [
-  'first_name',
-  'last_name',
-  'middle_name',
-  'gender',
-  'address',
-  'contact_number',
-  'photo_id',
-];
+// Matches the shared self-service profile: a teacher changes their photo and
+// how to reach them, not their name — that is a registrar record the class
+// lists and grade sheets depend on.
+const SELF_UPDATE_FIELDS = ['contact_number', 'address', 'photo_id'];
 
 const findImage = async (imageId) => {
   const [rows] = await pool.execute('SELECT id FROM images WHERE id = ?', [imageId]);
@@ -97,7 +92,7 @@ const updateProfile = async (req, res) => {
   }
 
   const body = req.body || {};
-  const forbidden = ['email', 'status', 'employee_number'].filter((field) =>
+  const forbidden = ['email', 'status', 'employee_number', 'first_name', 'last_name', 'middle_name', 'gender'].filter((field) =>
     Object.prototype.hasOwnProperty.call(body, field),
   );
 

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import DashboardLayout from '../../layouts/DashboardLayout';
 import StudentAccountPanel from '../../components/cashier/StudentAccountPanel';
 import DeclarePaymentPanel from '../../components/student/DeclarePaymentPanel';
+import { Loader } from '../../components/student/Feedback';
 import { fetchMyFinancialAccount } from '../../services/financialApi';
 import { extractErrorMessage } from '../../services/api';
 import { CARD_RADIUS } from '../../theme';
 
-function StudentDashboard() {
+function StudentBilling() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
@@ -50,34 +49,33 @@ function StudentDashboard() {
   const loading = data === null && !error;
 
   return (
-    <DashboardLayout
-      title="Student portal"
-      description="Your financial account for the current school year. Schedule, grades and attendance will follow."
-    >
+    <Box>
+      <Typography variant="h2" component="h1" sx={{ fontSize: { xs: '1.6rem', md: '2rem' } }}>
+        Tuition &amp; Payments
+      </Typography>
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
+        <Alert severity="error" sx={{ mt: 3, borderRadius: CARD_RADIUS }}>
           {error}
         </Alert>
       )}
 
       {loading ? (
-        <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}>
-          <CircularProgress size={26} aria-label="Loading your account" />
-        </Box>
+        <Loader label="Loading your account" />
       ) : data?.account ? (
-        <Stack spacing={3}>
+        <Stack spacing={3} sx={{ mt: 3 }}>
           <StudentAccountPanel account={data.account} academicYear={data.academic_year} />
           <DeclarePaymentPanel balance={data.account.totals.balance} onConfirmed={reload} />
         </Stack>
       ) : (
-        <Typography sx={{ color: 'text.secondary' }}>
+        <Typography sx={{ color: 'text.secondary', mt: 3 }}>
           {data?.academic_year
             ? 'You have no charges for this school year yet.'
             : 'No school year is active yet.'}
         </Typography>
       )}
-    </DashboardLayout>
+    </Box>
   );
 }
 
-export default StudentDashboard;
+export default StudentBilling;
