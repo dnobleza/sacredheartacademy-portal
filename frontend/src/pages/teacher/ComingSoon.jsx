@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import { CARD_RADIUS } from '../../theme';
 
 /**
  * Placeholder for teacher screens that are navigable but not built yet. It
@@ -18,7 +19,7 @@ function ComingSoon({ title }) {
         elevation={0}
         sx={{
           mt: 3,
-          borderRadius: 4,
+          borderRadius: CARD_RADIUS,
           border: '1px solid rgba(22,59,56,0.08)',
           backgroundColor: '#FFFFFF',
           p: 4,

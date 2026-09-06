@@ -32,7 +32,7 @@ import {
   sendMessage,
 } from '../../services/messagesApi';
 import { extractErrorMessage } from '../../services/api';
-import { AQUA_GRADIENT } from '../../theme';
+import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -66,7 +66,7 @@ function ConversationList({ conversations, loading, error, activeId, onSelect, o
     <Paper
       elevation={0}
       sx={{
-        borderRadius: 4,
+        borderRadius: CARD_RADIUS,
         border: '1px solid rgba(22,59,56,0.08)',
         backgroundColor: '#FFFFFF',
         height: '100%',
@@ -84,7 +84,7 @@ function ConversationList({ conversations, loading, error, activeId, onSelect, o
 
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
         {error && (
-          <Alert severity="error" sx={{ mx: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mx: 2, borderRadius: CARD_RADIUS }}>
             {error}
           </Alert>
         )}
@@ -245,7 +245,7 @@ function ThreadPane({
       <Paper
         elevation={0}
         sx={{
-          borderRadius: 4,
+          borderRadius: CARD_RADIUS,
           border: '1px solid rgba(22,59,56,0.08)',
           backgroundColor: '#FFFFFF',
           height: '100%',
@@ -265,7 +265,7 @@ function ThreadPane({
     <Paper
       elevation={0}
       sx={{
-        borderRadius: 4,
+        borderRadius: CARD_RADIUS,
         border: '1px solid rgba(22,59,56,0.08)',
         backgroundColor: '#FFFFFF',
         height: '100%',
@@ -298,7 +298,7 @@ function ThreadPane({
 
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: CARD_RADIUS }}>
             {error}
           </Alert>
         )}
@@ -349,7 +349,7 @@ function ThreadPane({
                     maxWidth: '78%',
                     px: 2,
                     py: 1.25,
-                    borderRadius: 3,
+                    borderRadius: CARD_RADIUS,
                     background: mine ? AQUA_GRADIENT : 'background.paper',
                     color: mine ? '#fff' : 'text.primary',
                   }}
@@ -364,7 +364,7 @@ function ThreadPane({
                         multiline
                         maxRows={6}
                         autoFocus
-                        sx={{ backgroundColor: '#fff', borderRadius: 1, minWidth: 220 }}
+                        sx={{ backgroundColor: '#fff', borderRadius: CARD_RADIUS, minWidth: 220 }}
                       />
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <IconButton
@@ -544,7 +544,7 @@ function NewMessageDialog({ open, onClose, onPick }) {
 
         <List disablePadding>
           {results.map((person) => (
-            <ListItemButton key={person.user_id} onClick={() => onPick(person)} sx={{ borderRadius: 2 }}>
+            <ListItemButton key={person.user_id} onClick={() => onPick(person)} sx={{ borderRadius: CARD_RADIUS }}>
               <Avatar sx={{ background: AQUA_GRADIENT, mr: 1.5, width: 34, height: 34, fontSize: '0.8rem' }}>
                 {initials(person.name)}
               </Avatar>

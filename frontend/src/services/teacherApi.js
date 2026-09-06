@@ -10,6 +10,11 @@ export const fetchTeacherClasses = async () => {
   return response.data.data;
 };
 
+export const fetchAdvisoryStudents = async () => {
+  const response = await api.get('/teacher/classes/advisory/students');
+  return response.data.data;
+};
+
 export const fetchSectionRoster = async (sectionId) => {
   const response = await api.get(`/teacher/classes/sections/${sectionId}/students`);
   return response.data.data;

@@ -7,7 +7,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { fetchImageObjectUrl } from '../../services/imagesApi';
-import { AQUA_GRADIENT } from '../../theme';
+import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
 
 const AUDIENCE_LABELS = {
   all: 'Everyone',
@@ -92,7 +92,7 @@ function AnnouncementPost({ announcement, manageTo }) {
     <Paper
       elevation={0}
       sx={{
-        borderRadius: 4,
+        borderRadius: CARD_RADIUS,
         border: '1px solid rgba(22,59,56,0.08)',
         backgroundColor: '#FFFFFF',
         overflow: 'hidden',

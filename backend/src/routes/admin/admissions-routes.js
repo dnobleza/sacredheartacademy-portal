@@ -13,7 +13,12 @@ router.use(authenticateToken, authorizeRoles('admin'));
 
 router.get('/', asyncHandler(admissionsController.listApplications));
 router.get('/:id', asyncHandler(admissionsController.getApplicationById));
+router.get(
+  '/:id/documents/:documentId',
+  asyncHandler(admissionsController.getApplicationDocument),
+);
 router.put('/:id/status', asyncHandler(admissionsController.updateStatus));
+router.put('/:id/return', asyncHandler(admissionsController.returnApplication));
 
 
 

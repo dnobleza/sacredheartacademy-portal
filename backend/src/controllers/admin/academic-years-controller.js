@@ -18,9 +18,6 @@ const ACADEMIC_YEAR_SELECT_FIELDS = `
   updated_at
 `;
 
-
-
-
 const demoteOtherActiveYears = (connection, excludeId) =>
   connection.execute(
     `UPDATE academic_years SET status = 'completed' WHERE status = 'active' AND id <> ?`,
@@ -68,7 +65,11 @@ const createAcademicYear = async (req, res) => {
 const createAcademicYearHandler = (req, res, next) =>
   createAcademicYear(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return sendError(res, HTTP_STATUS.CONFLICT, 'An academic year with this name already exists.');
+      return sendError(
+        res,
+        HTTP_STATUS.CONFLICT,
+        'An academic year with this name already exists.',
+      );
     }
     return next(error);
   });
@@ -94,9 +95,6 @@ const listAcademicYears = async (req, res) => {
     [...searchParams, limit, offset],
   );
 
-  
-  
-  
   return sendOk(res, {
     'academic-years': rows,
     pagination: {
@@ -166,9 +164,6 @@ const updateAcademicYear = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Academic year not found.');
   }
 
-  
-  
-  
   const effectiveStartDate = Object.prototype.hasOwnProperty.call(req.body, 'start_date')
     ? req.body.start_date
     : existing[0].start_date;
@@ -211,7 +206,11 @@ const updateAcademicYear = async (req, res) => {
 const updateAcademicYearHandler = (req, res, next) =>
   updateAcademicYear(req, res).catch((error) => {
     if (error.code === 'ER_DUP_ENTRY') {
-      return sendError(res, HTTP_STATUS.CONFLICT, 'An academic year with this name already exists.');
+      return sendError(
+        res,
+        HTTP_STATUS.CONFLICT,
+        'An academic year with this name already exists.',
+      );
     }
     return next(error);
   });

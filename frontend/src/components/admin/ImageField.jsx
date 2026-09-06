@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import { fetchImageObjectUrl, uploadImage } from '../../services/imagesApi';
 import { extractErrorMessage } from '../../services/api';
+import { CARD_RADIUS } from '../../theme';
 
 // Mirrors the backend's fileFilter and size limit, so an obviously wrong file
 // is refused before it costs a round trip. The server still enforces both —
@@ -112,7 +113,7 @@ function ImageField({ label, value, onChange, disabled }) {
           sx={{
             width: 88,
             height: 88,
-            borderRadius: 3,
+            borderRadius: CARD_RADIUS,
             border: '1px solid rgba(22,59,56,0.12)',
             backgroundColor: 'rgba(22,59,56,0.03)',
             display: 'grid',
@@ -139,7 +140,7 @@ function ImageField({ label, value, onChange, disabled }) {
             disabled={disabled || loading}
             variant="outlined"
             size="small"
-            sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 700 }}
+            sx={{ borderRadius: CARD_RADIUS, textTransform: 'none', fontWeight: 700 }}
           >
             {value ? 'Replace' : 'Upload'}
           </Button>
@@ -153,7 +154,7 @@ function ImageField({ label, value, onChange, disabled }) {
               disabled={disabled || loading}
               size="small"
               startIcon={<Trash2 size={15} />}
-              sx={{ borderRadius: 2.5, textTransform: 'none', color: 'error.main' }}
+              sx={{ borderRadius: CARD_RADIUS, textTransform: 'none', color: 'error.main' }}
             >
               Remove
             </Button>
@@ -171,7 +172,7 @@ function ImageField({ label, value, onChange, disabled }) {
       />
 
       {error && (
-        <Alert severity="error" sx={{ mt: 1.5, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mt: 1.5, borderRadius: CARD_RADIUS }}>
           {error}
         </Alert>
       )}

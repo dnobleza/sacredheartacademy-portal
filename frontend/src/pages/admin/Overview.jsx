@@ -21,11 +21,13 @@ import { useAuth } from '../../context/AuthContext';
 import { fetchDashboard } from '../../services/adminApi';
 import { extractErrorMessage } from '../../services/api';
 import AnnouncementPost, { formatDate } from '../../components/common/AnnouncementPost';
-import { AQUA, AQUA_GRADIENT } from '../../theme';
+import { AQUA, AQUA_GRADIENT, CARD_RADIUS, TILE_RADIUS } from '../../theme';
 
 // People only. The academic and scheduling resources keep their own pages,
 // reached from the sidebar, so they no longer take up dashboard space.
 // peopleKey names the dashboard field holding that card's recent registrations.
+const CARD_BORDER = '1px solid rgba(22,59,56,0.08)';
+
 const CARDS = [
   { key: 'students', label: 'Students', to: '/admin/students', Icon: GraduationCap, peopleKey: 'recent_students' },
   { key: 'teachers', label: 'Teachers', to: '/admin/teachers', Icon: Presentation, peopleKey: 'recent_teachers' },
@@ -47,7 +49,7 @@ const initials = (person) =>
 
 function RecentPeople({ people }) {
   return (
-    <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(22,59,56,0.08)' }}>
+    <Box sx={{ mt: 2.5, pt: 2, borderTop: CARD_BORDER }}>
       <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700, mb: 1.5 }}>
         Recently registered
       </Typography>
@@ -88,8 +90,8 @@ function CountCard({ label, to, Icon, value, loading, people }) {
       sx={{
         display: 'block',
         textDecoration: 'none',
-        borderRadius: 4,
-        border: '1px solid rgba(22,59,56,0.08)',
+        borderRadius: CARD_RADIUS,
+        border: CARD_BORDER,
         backgroundColor: '#FFFFFF',
         p: 3,
         transition: 'transform 240ms ease, box-shadow 240ms ease',
@@ -105,7 +107,7 @@ function CountCard({ label, to, Icon, value, loading, people }) {
           sx={{
             width: 48,
             height: 48,
-            borderRadius: '14px',
+            borderRadius: TILE_RADIUS,
             background: AQUA_GRADIENT,
             color: '#fff',
             display: 'grid',
@@ -180,7 +182,7 @@ function Overview() {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
           {error}
         </Alert>
       )}
@@ -191,8 +193,8 @@ function Overview() {
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 4,
-            border: '1px solid rgba(22,59,56,0.08)',
+            borderRadius: CARD_RADIUS,
+            border: CARD_BORDER,
             backgroundColor: activeYear ? '#FFFFFF' : 'rgba(211,90,70,0.06)',
             p: 3,
             mb: 4,
@@ -205,7 +207,7 @@ function Overview() {
                 sx={{
                   width: 48,
                   height: 48,
-                  borderRadius: '14px',
+                  borderRadius: TILE_RADIUS,
                   background: AQUA_GRADIENT,
                   color: '#fff',
                   display: 'grid',
@@ -262,7 +264,7 @@ function Overview() {
 
         <Paper
           elevation={0}
-          sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', backgroundColor: '#FFFFFF', p: 3 }}
+          sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3 }}
         >
           {dashboard === null && !error ? (
             <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
@@ -323,7 +325,7 @@ function Overview() {
         ) : announcements.length === 0 ? (
           <Paper
             elevation={0}
-            sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', backgroundColor: '#FFFFFF', py: 6, textAlign: 'center' }}
+            sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', py: 6, textAlign: 'center' }}
           >
             <Typography sx={{ color: 'text.secondary' }}>No announcements posted yet.</Typography>
           </Paper>

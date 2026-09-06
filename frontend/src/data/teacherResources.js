@@ -13,7 +13,7 @@ export const TEACHER_NAV = [
     icon: 'Users2',
     children: [
       { to: '/teacher/classes', label: 'Classes', icon: 'Users2' },
-      { to: '/teacher/students', label: 'Students', icon: 'GraduationCap' },
+      { to: '/teacher/students', label: 'My Advisory Class', icon: 'GraduationCap' },
     ],
   },
   {

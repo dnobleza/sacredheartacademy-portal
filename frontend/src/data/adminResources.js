@@ -246,6 +246,7 @@ export const ADMIN_RESOURCES = {
       { field: 'name', label: 'Name', minWidth: 160 },
       { field: 'grade_level_name', label: 'Grade level', minWidth: 160 },
       { field: 'room', label: 'Room', minWidth: 120 },
+      { field: 'capacity', label: 'Capacity', minWidth: 110 },
     ],
     fields: [
       { name: 'name', label: 'Name', required: true, maxLength: 100 },
@@ -257,6 +258,9 @@ export const ADMIN_RESOURCES = {
         optionsSource: 'gradeLevels',
       },
       { name: 'room', label: 'Room', maxLength: 50 },
+      // Drives automatic placement on accept: sections fill in name order
+      // until each one reaches this number.
+      { name: 'capacity', label: 'Capacity', type: 'number', required: true },
     ],
   },
 
@@ -353,15 +357,17 @@ export const ADMIN_RESOURCES = {
 
   classes: {
     key: 'classes',
-    label: 'Classes',
-    singular: 'Class',
+    // The key stays 'classes' because it drives the /admin/classes API path;
+    // only the wording changes, so the screen says what it actually manages.
+    label: 'Advisory Classes',
+    singular: 'Advisory Class',
     icon: 'Users2',
     // Section names repeat across grade levels, so the grade level is what
     // separates one advisory class from another in the row action labels and
     // the delete confirmation.
     displayName: (row) =>
       `${row.section_name} — ${row.grade_level_name} (${row.academic_year_name})`,
-    searchHint: 'section or adviser',
+    searchHint: 'section, adviser or school year',
     createsLoginAccount: false,
     deleteMessage: (name) =>
       `${name} will be permanently removed. This cannot be undone.`,
@@ -454,11 +460,12 @@ export const ADMIN_NAV = [
     icon: 'UsersRound',
     children: [
       { to: '/admin/admissions', label: 'Admissions', icon: 'ClipboardList' },
-      { to: '/admin/students', label: 'Students', icon: 'GraduationCap' },
+      { to: '/admin/students', label: 'Students', icon: 'GraduationCap', minAccessLevel: 4 },
       { to: '/admin/teachers', label: 'Teachers', icon: 'Presentation' },
       { to: '/admin/parents', label: 'Parents', icon: 'Users' },
-      // Managing admin accounts is Super Admin only on the server; hiding the
-      // link keeps a lower-level admin from walking into a 403.
+      // Student, section, grade-level and school-year records are Super Admin
+      // only on the server; hiding the links keeps a lower-level admin from
+      // walking into a 403.
       { to: '/admin/admins', label: 'Admins', icon: 'ShieldCheck', minAccessLevel: 4 },
     ],
   },
@@ -467,9 +474,9 @@ export const ADMIN_NAV = [
     label: 'Academic Management',
     icon: 'CalendarDays',
     children: [
-      { to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange' },
-      { to: '/admin/grade-levels', label: 'Grade Level', icon: 'Layers' },
-      { to: '/admin/sections', label: 'Section', icon: 'DoorOpen' },
+      { to: '/admin/academic-years', label: 'School Year', icon: 'CalendarRange', minAccessLevel: 4 },
+      { to: '/admin/grade-levels', label: 'Grade Level', icon: 'Layers', minAccessLevel: 4 },
+      { to: '/admin/sections', label: 'Section', icon: 'DoorOpen', minAccessLevel: 4 },
       { to: '/admin/subjects', label: 'Subjects', icon: 'BookOpen' },
     ],
   },
@@ -477,13 +484,15 @@ export const ADMIN_NAV = [
     key: 'schedule',
     label: 'Schedule Management',
     icon: 'CalendarClock',
-    children: [{ to: '/admin/schedules', label: 'Schedule', icon: 'CalendarClock' }],
+    children: [
+      { to: '/admin/schedules', label: 'Schedule', icon: 'CalendarClock', minAccessLevel: 4 },
+    ],
   },
   {
     key: 'class',
-    label: 'Class Management',
+    label: 'Advisory Classes',
     icon: 'Users2',
-    children: [{ to: '/admin/classes', label: 'Class', icon: 'Users2' }],
+    children: [{ to: '/admin/classes', label: 'Advisory Class', icon: 'Users2', minAccessLevel: 4 }],
   },
   {
     key: 'communication',

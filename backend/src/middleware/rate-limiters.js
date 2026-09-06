@@ -61,9 +61,20 @@ const admissionLimiter = rateLimit({
   handler: buildHandler('Too many applications from this address. Please try again later.'),
 });
 
+
+
+const admissionLookupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: buildHandler('Too many status checks from this address. Please try again later.'),
+});
+
 module.exports = {
   generalLimiter,
   admissionLimiter,
+  admissionLookupLimiter,
   loginLimiter,
   refreshLimiter,
   accountCreationLimiter,

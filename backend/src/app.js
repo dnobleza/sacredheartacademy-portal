@@ -77,6 +77,8 @@ app.use('/api/v1/admin/classes', require('./routes/admin/classes-routes'));
 app.use('/api/v1/admin/announcements', require('./routes/admin/announcements-routes'));
 app.use('/api/v1/admin/admissions', require('./routes/admin/admissions-routes'));
 app.use('/api/v1/admin/dashboard', require('./routes/admin/dashboard-routes'));
+app.use('/api/v1/admin/enrollments', require('./routes/admin/enrollments-routes'));
+app.use('/api/v1/admin/registrar-dashboard', require('./routes/admin/registrar-dashboard-routes'));
 app.use('/api/v1/teacher/dashboard', require('./routes/teachers/dashboard-routes'));
 app.use('/api/v1/teacher/classes', require('./routes/teachers/classes-routes'));
 app.use('/api/v1/teacher/profile', require('./routes/teachers/profile-routes'));

@@ -16,6 +16,27 @@ export const ROLE_LABEL = {
   parent: 'Parent',
 };
 
+// Mirrors ACCESS_LEVELS in backend/src/utils/access-levels.js.
+export const REGISTRAR_LEVEL = 3;
+export const SUPER_ADMIN_LEVEL = 4;
+
 export const roleHome = (role) => ROLE_HOME[role] || '/';
 
 export const roleLabel = (role) => ROLE_LABEL[role] || 'Member';
+
+/**
+ * Where a signed-in user belongs. A registrar is an admin by role, so role
+ * alone would drop them on the full admin overview; the exact Lvl-3 match
+ * sends them to their own portal while leaving Super Admin on /admin.
+ */
+export const portalHome = (user) => {
+  if (!user) {
+    return '/';
+  }
+
+  if (user.role === 'admin' && user.access_level?.level === REGISTRAR_LEVEL) {
+    return '/registrar';
+  }
+
+  return roleHome(user.role);
+};

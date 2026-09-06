@@ -18,13 +18,37 @@ export const fetchAdmission = async (id) => {
   return response.data.data;
 };
 
+/**
+ * Documents live behind the authenticated admin endpoint, so they cannot be
+ * used as a plain src/href. Fetch the bytes and hand back an object URL the
+ * caller revokes when it is done, the same way imagesApi does.
+ */
+export const fetchAdmissionDocumentUrl = async (applicationId, documentId) => {
+  const response = await api.get(`/admin/admissions/${applicationId}/documents/${documentId}`, {
+    responseType: 'blob',
+  });
+
+  return URL.createObjectURL(response.data);
+};
+
 export const updateAdmissionStatus = async (id, payload) => {
   const response = await api.put(`/admin/admissions/${id}/status`, payload);
   return response.data.data;
 };
 
-export const acceptAdmission = async (id) => {
-  const response = await api.post(`/admin/admissions/${id}/accept`, {});
+/**
+ * Sends an application back to the applicant with the specific items to fix.
+ */
+export const returnAdmission = async (id, payload) => {
+  const response = await api.put(`/admin/admissions/${id}/return`, payload);
+  return response.data.data;
+};
+
+/**
+ * Approving places the student, so the grade level and section are required.
+ */
+export const acceptAdmission = async (id, payload) => {
+  const response = await api.post(`/admin/admissions/${id}/accept`, payload);
   return response.data.data;
 };
 

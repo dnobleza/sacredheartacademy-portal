@@ -73,6 +73,7 @@ CREATE TABLE `admission_applications` (
   `reference_number` varchar(20) NOT NULL,
   `academic_year_id` int DEFAULT NULL,
   `grade_level_id` int NOT NULL,
+  `enrollment_type` enum('new','returning','transferee') NOT NULL DEFAULT 'new',
   `first_name` varchar(100) NOT NULL,
   `middle_name` varchar(100) DEFAULT NULL,
   `last_name` varchar(100) NOT NULL,
@@ -87,9 +88,11 @@ CREATE TABLE `admission_applications` (
   `guardian_email` varchar(255) DEFAULT NULL,
   `previous_school` varchar(200) DEFAULT NULL,
   `notes` text,
-  `status` enum('pending','reviewing','accepted','rejected','enrolled') NOT NULL DEFAULT 'pending',
+  `status` enum('pending','reviewing','returned','accepted','rejected','enrolled') NOT NULL DEFAULT 'pending',
   `reviewed_by` int DEFAULT NULL,
   `reviewed_at` timestamp NULL DEFAULT NULL,
+  `returned_at` timestamp NULL DEFAULT NULL,
+  `submission_count` int NOT NULL DEFAULT '1',
   `review_remarks` text,
   `student_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -107,6 +110,38 @@ CREATE TABLE `admission_applications` (
   CONSTRAINT `admission_applications_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`),
   CONSTRAINT `admission_applications_ibfk_4` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `admission_documents` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `application_id` int NOT NULL,
+  `document_type` enum('good_moral','form_137','psa_birth_certificate','id_picture') NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  `original_name` varchar(255) DEFAULT NULL,
+  `mime_type` varchar(100) NOT NULL,
+  `size_bytes` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `filename` (`filename`),
+  UNIQUE KEY `uq_application_document` (`application_id`,`document_type`),
+  CONSTRAINT `fk_admission_documents_application` FOREIGN KEY (`application_id`) REFERENCES `admission_applications` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `admission_return_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `application_id` int NOT NULL,
+  `item_type` enum('document','information') NOT NULL,
+  `item_key` varchar(64) NOT NULL,
+  `note` varchar(255) DEFAULT NULL,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `application_id` (`application_id`),
+  CONSTRAINT `fk_return_items_application` FOREIGN KEY (`application_id`) REFERENCES `admission_applications` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -361,6 +396,7 @@ CREATE TABLE `sections` (
   `grade_level_id` int NOT NULL,
   `name` varchar(100) NOT NULL,
   `room` varchar(50) DEFAULT NULL,
+  `capacity` int NOT NULL DEFAULT '40',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
