@@ -92,6 +92,77 @@ const listClasses = async (req, res) => {
 };
 
 
+const STUDENT_SELECT_FIELDS = `
+  students.id,
+  students.first_name,
+  students.middle_name,
+  students.last_name,
+  students.gender,
+  students.birth_date,
+  students.contact_number,
+  students.photo_id,
+  users.email
+`;
+
+
+
+
+const findSectionStudents = async (sectionId, academicYearId) => {
+  const [rows] = await pool.execute(
+    `SELECT ${STUDENT_SELECT_FIELDS}
+     FROM enrollments
+     JOIN students ON students.id = enrollments.student_id
+     LEFT JOIN users ON users.id = students.user_id
+     WHERE enrollments.section_id = ?
+       AND enrollments.academic_year_id = ?
+       AND enrollments.status = 'active'
+     ORDER BY students.last_name, students.first_name`,
+    [sectionId, academicYearId],
+  );
+
+  return rows;
+};
+
+
+
+
+
+
+
+const attachGuardians = async (students) => {
+  if (students.length === 0) {
+    return students;
+  }
+
+  const placeholders = students.map(() => '?').join(', ');
+
+  const [rows] = await pool.execute(
+    `SELECT
+       student_parents.student_id,
+       parents.first_name,
+       parents.last_name,
+       parents.contact_number,
+       student_parents.relationship,
+       student_parents.is_primary_contact
+     FROM student_parents
+     JOIN parents ON parents.id = student_parents.parent_id
+     WHERE student_parents.student_id IN (${placeholders})
+     ORDER BY student_parents.is_primary_contact DESC, parents.last_name, parents.first_name`,
+    students.map((student) => student.id),
+  );
+
+  const byStudent = rows.reduce((map, row) => {
+    const { student_id: studentId, ...guardian } = row;
+    map.set(studentId, [...(map.get(studentId) || []), guardian]);
+    return map;
+  }, new Map());
+
+  return students.map((student) => ({
+    ...student,
+    guardians: byStudent.get(student.id) || [],
+  }));
+};
+
 const teacherHandlesSection = async (teacherId, academicYearId, sectionId) => {
   const [rows] = await pool.execute(
     `SELECT 1 AS handled
@@ -139,27 +210,50 @@ const getSectionRoster = async (req, res) => {
 
   
   
-  const [students] = await pool.execute(
-    `SELECT
-       students.id,
-       students.first_name,
-       students.middle_name,
-       students.last_name,
-       students.gender,
-       students.photo_id
-     FROM enrollments
-     JOIN students ON students.id = enrollments.student_id
-     WHERE enrollments.section_id = ?
-       AND enrollments.academic_year_id = ?
-       AND enrollments.status = 'active'
-     ORDER BY students.last_name, students.first_name`,
-    [sectionId, activeAcademicYear.id],
+  const students = await attachGuardians(
+    await findSectionStudents(sectionId, activeAcademicYear.id),
   );
 
   return sendOk(res, { students });
 };
 
+
+
+
+const listAdvisoryStudents = async (req, res) => {
+  const teacherId = req.user.profileId;
+
+  if (!teacherId) {
+    return sendError(res, HTTP_STATUS.FORBIDDEN, 'No teacher profile is linked to this account.');
+  }
+
+  const activeAcademicYear = await getActiveAcademicYear();
+
+  if (!activeAcademicYear) {
+    return sendOk(res, { active_academic_year: null, advisory_classes: [] });
+  }
+
+  const advisoryClasses = await getAdvisoryClasses(teacherId, activeAcademicYear.id);
+
+
+
+  const withStudents = await Promise.all(
+    advisoryClasses.map(async (advisoryClass) => ({
+      ...advisoryClass,
+      students: await attachGuardians(
+        await findSectionStudents(advisoryClass.section_id, activeAcademicYear.id),
+      ),
+    })),
+  );
+
+  return sendOk(res, {
+    active_academic_year: activeAcademicYear,
+    advisory_classes: withStudents,
+  });
+};
+
 module.exports = {
   listClasses,
+  listAdvisoryStudents,
   getSectionRoster,
 };

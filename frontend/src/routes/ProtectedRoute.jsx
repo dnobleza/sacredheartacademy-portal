@@ -2,14 +2,14 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAuth } from '../context/AuthContext';
-import { roleHome } from '../utils/roles';
+import { portalHome } from '../utils/roles';
 
 /**
  * UX guard only — the real enforcement lives in the backend's
  * authenticate-token and authorize-roles middleware. This just avoids showing
  * a page the API would refuse to fill.
  */
-function ProtectedRoute({ allowedRoles }) {
+function ProtectedRoute({ allowedRoles, minAccessLevel, exactAccessLevel }) {
   const { status, user } = useAuth();
   const location = useLocation();
 
@@ -27,7 +27,20 @@ function ProtectedRoute({ allowedRoles }) {
 
   // Wrong role: send them to their own portal rather than a dead end.
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={roleHome(user.role)} replace />;
+    return <Navigate to={portalHome(user)} replace />;
+  }
+
+  // Access level gates a portal the same way it gates the API. An unknown
+  // level fails closed, matching require-min-access-level on the server.
+  if (minAccessLevel !== undefined && (user.access_level?.level ?? -1) < minAccessLevel) {
+    return <Navigate to={portalHome(user)} replace />;
+  }
+
+  // Some portals belong to one level rather than a floor — the registrar's
+  // screens are not a Super Admin's, so a higher level is refused too. Mirrors
+  // require-exact-access-level on the server.
+  if (exactAccessLevel !== undefined && user.access_level?.level !== exactAccessLevel) {
+    return <Navigate to={portalHome(user)} replace />;
   }
 
   return <Outlet />;

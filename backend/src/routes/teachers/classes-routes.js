@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(authenticateToken, authorizeRoles('teacher'));
 
 router.get('/', asyncHandler(classesController.listClasses));
+router.get('/advisory/students', asyncHandler(classesController.listAdvisoryStudents));
 router.get('/sections/:sectionId/students', asyncHandler(classesController.getSectionRoster));
 
 module.exports = router;

@@ -31,6 +31,7 @@ import {
   updateResource,
 } from '../../services/adminApi';
 import { extractErrorMessage } from '../../services/api';
+import { CARD_RADIUS } from '../../theme';
 
 const STATUS_COLORS = {
   active: { bg: 'rgba(32,191,169,0.16)', fg: '#0F6F62' },
@@ -344,7 +345,7 @@ function ResourcePage({ resource }) {
 
       <Paper
         elevation={0}
-        sx={{ borderRadius: 4, border: '1px solid rgba(22,59,56,0.08)', overflow: 'hidden' }}
+        sx={{ borderRadius: CARD_RADIUS, border: '1px solid rgba(22,59,56,0.08)', overflow: 'hidden' }}
       >
         <Box sx={{ p: 2.5 }}>
           <TextField
@@ -369,7 +370,7 @@ function ResourcePage({ resource }) {
         </Box>
 
         {loadError && (
-          <Alert severity="error" sx={{ mx: 2.5, mb: 2.5, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mx: 2.5, mb: 2.5, borderRadius: CARD_RADIUS }}>
             {loadError}
           </Alert>
         )}

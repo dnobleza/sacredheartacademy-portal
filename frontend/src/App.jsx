@@ -1,8 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './routes/ProtectedRoute';
+import { REGISTRAR_LEVEL } from './utils/roles';
 import AdminLayout from './layouts/AdminLayout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import AdmissionApply from './pages/public/AdmissionApply';
+import ApplicationStatus from './pages/public/ApplicationStatus';
 import NotFound from './pages/NotFound';
 import Overview from './pages/admin/Overview';
 import Profile from './pages/admin/Profile';
@@ -19,11 +22,16 @@ import SchedulesPage from './pages/admin/SchedulesPage';
 import ClassesPage from './pages/admin/ClassesPage';
 import AnnouncementsPage from './pages/admin/AnnouncementsPage';
 import MessagesPage from './pages/shared/MessagesPage';
+import RegistrarLayout from './layouts/RegistrarLayout';
+import RegistrarOverview from './pages/registrar/Overview';
+import RegistrarComingSoon from './pages/registrar/ComingSoon';
+import EnrollmentPage from './pages/registrar/EnrollmentPage';
 import TeacherLayout from './layouts/TeacherLayout';
 import TeacherOverview from './pages/teacher/Overview';
 import ComingSoon from './pages/teacher/ComingSoon';
 import TeacherClasses from './pages/teacher/Classes';
 import TeacherProfile from './pages/teacher/Profile';
+import TeacherAdvisoryStudents from './pages/teacher/AdvisoryStudents';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import ParentDashboard from './pages/dashboard/ParentDashboard';
 
@@ -32,6 +40,8 @@ function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/admissions" element={<AdmissionApply />} />
+      <Route path="/admissions/status" element={<ApplicationStatus />} />
 
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
@@ -53,6 +63,23 @@ function App() {
         </Route>
       </Route>
 
+      {/* Registrar is an access level inside the admin role, so the guard checks
+          both. The screens are the admin pages, mounted here so the registrar
+          sidebar stays put instead of switching portals mid-task. The level is
+          exact, not a floor: these screens belong to the registrar, and a Super
+          Admin is sent back to their own portal. */}
+      <Route element={<ProtectedRoute allowedRoles={['admin']} exactAccessLevel={REGISTRAR_LEVEL} />}>
+        <Route path="/registrar" element={<RegistrarLayout />}>
+          <Route index element={<RegistrarOverview />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="admissions" element={<AdmissionsPage />} />
+          <Route path="enrollment" element={<EnrollmentPage />} />
+          <Route path="records" element={<RegistrarComingSoon title="Records Requests" />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
+          <Route path="messages" element={<MessagesPage />} />
+        </Route>
+      </Route>
+
       <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
         <Route path="/teacher" element={<TeacherLayout />}>
           <Route index element={<TeacherOverview />} />
@@ -60,7 +87,7 @@ function App() {
               reach an honest placeholder rather than a 404. */}
           <Route path="profile" element={<TeacherProfile />} />
           <Route path="classes" element={<TeacherClasses />} />
-          <Route path="students" element={<ComingSoon title="Students" />} />
+          <Route path="students" element={<TeacherAdvisoryStudents />} />
           <Route path="attendance" element={<ComingSoon title="Attendance" />} />
           <Route path="grades" element={<ComingSoon title="Grades" />} />
           <Route path="assignments" element={<ComingSoon title="Assignments" />} />

@@ -20,7 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { fetchTeacherDashboard } from '../../services/teacherApi';
 import { extractErrorMessage } from '../../services/api';
 import AnnouncementPost from '../../components/common/AnnouncementPost';
-import { AQUA_GRADIENT } from '../../theme';
+import { AQUA_GRADIENT, CARD_RADIUS, TILE_RADIUS } from '../../theme';
 
 const CARD_BORDER = '1px solid rgba(22,59,56,0.08)';
 
@@ -41,7 +41,7 @@ function StatCard({ label, value, Icon, loading }) {
   return (
     <Paper
       elevation={0}
-      sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3, height: '100%' }}
+      sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', p: 3, height: '100%' }}
     >
       <Stack direction="row" alignItems="center" spacing={2}>
         <Box
@@ -49,7 +49,7 @@ function StatCard({ label, value, Icon, loading }) {
           sx={{
             width: 48,
             height: 48,
-            borderRadius: '14px',
+            borderRadius: TILE_RADIUS,
             background: AQUA_GRADIENT,
             color: '#fff',
             display: 'grid',
@@ -78,12 +78,13 @@ function StatCard({ label, value, Icon, loading }) {
   );
 }
 
-function SectionPanel({ title, children }) {
+function SectionPanel({ title, action, children }) {
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        {title}
-      </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Typography variant="h5">{title}</Typography>
+        {action}
+      </Stack>
       {children}
     </Box>
   );
@@ -154,7 +155,7 @@ function TeacherOverview() {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
           {error}
         </Alert>
       )}
@@ -164,7 +165,7 @@ function TeacherOverview() {
       {dashboard !== null && !activeYear ? (
         <Paper
           elevation={0}
-          sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: 'rgba(211,90,70,0.06)', p: 3, mb: 4 }}
+          sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: 'rgba(211,90,70,0.06)', p: 3, mb: 4 }}
         >
           <Typography sx={{ fontWeight: 800, color: '#9C3B2A' }}>No active school year</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
@@ -189,8 +190,20 @@ function TeacherOverview() {
         </Grid>
       </Grid>
 
-      <SectionPanel title="My Advisory Class">
-        <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
+      <SectionPanel
+        title="My Advisory Class"
+        action={
+          <Typography
+            component={RouterLink}
+            to="/teacher/students"
+            variant="body2"
+            sx={{ color: 'primary.dark', fontWeight: 700, textDecoration: 'none' }}
+          >
+            View students
+          </Typography>
+        }
+      >
+        <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
           {loading ? (
             <Loader label="Loading advisory classes" />
           ) : advisory.length === 0 ? (
@@ -223,7 +236,7 @@ function TeacherOverview() {
       </SectionPanel>
 
       <SectionPanel title="Attendance">
-        <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
+        <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
           {loading ? (
             <Loader label="Loading attendance" />
           ) : attendance.length === 0 ? (
@@ -257,7 +270,7 @@ function TeacherOverview() {
                     to="/teacher/attendance"
                     variant="outlined"
                     size="small"
-                    sx={{ flexShrink: 0, borderRadius: 2, fontWeight: 700 }}
+                    sx={{ flexShrink: 0, borderRadius: CARD_RADIUS, fontWeight: 700 }}
                   >
                     Take Attendance
                   </Button>
@@ -269,7 +282,7 @@ function TeacherOverview() {
       </SectionPanel>
 
       <SectionPanel title="Pending Tasks">
-        <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+        <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
           {loading ? (
             <Loader label="Loading tasks" />
           ) : tasks.length === 0 ? (
@@ -307,7 +320,7 @@ function TeacherOverview() {
         {loading ? (
           <Loader label="Loading announcements" />
         ) : announcements.length === 0 ? (
-          <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
+          <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
             <EmptyRow text="No announcements posted yet." />
           </Paper>
         ) : (

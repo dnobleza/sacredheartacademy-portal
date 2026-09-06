@@ -13,6 +13,7 @@ const SECTION_SELECT_FIELDS = `
   sections.grade_level_id,
   sections.name,
   sections.room,
+  sections.capacity,
   sections.created_at,
   sections.updated_at,
   grade_levels.name AS grade_level_name,
@@ -21,6 +22,8 @@ const SECTION_SELECT_FIELDS = `
 
 
 
+
+const DEFAULT_CAPACITY = 40;
 
 const findGradeLevel = async (gradeLevelId) => {
   const [rows] = await pool.execute('SELECT id FROM grade_levels WHERE id = ?', [gradeLevelId]);
@@ -47,9 +50,15 @@ const createSection = async (req, res) => {
     return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Grade level is not valid.');
   }
 
+  
+  
+  const capacity = req.body.capacity === undefined || req.body.capacity === null || req.body.capacity === ''
+    ? DEFAULT_CAPACITY
+    : Number(req.body.capacity);
+
   const [result] = await pool.execute(
-    `INSERT INTO sections (grade_level_id, name, room) VALUES (?, ?, ?)`,
-    [gradeLevelId, name, room],
+    `INSERT INTO sections (grade_level_id, name, room, capacity) VALUES (?, ?, ?, ?)`,
+    [gradeLevelId, name, room, capacity],
   );
 
   return sendCreated(res, {
@@ -57,6 +66,7 @@ const createSection = async (req, res) => {
     grade_level_id: gradeLevelId,
     name,
     room,
+    capacity,
   });
 };
 
@@ -128,13 +138,13 @@ const getSectionById = async (req, res) => {
   return sendOk(res, rows[0]);
 };
 
-const UPDATE_FIELDS = ['name', 'grade_level_id', 'room'];
+const UPDATE_FIELDS = ['name', 'grade_level_id', 'room', 'capacity'];
 
 const normalizeUpdateValue = (field, value) => {
   if (field === 'name' && typeof value === 'string') {
     return value.trim();
   }
-  if (field === 'grade_level_id') {
+  if (field === 'grade_level_id' || field === 'capacity') {
     return Number(value);
   }
   if (field === 'room') {

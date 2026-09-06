@@ -11,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchSectionRoster, fetchTeacherClasses } from '../../services/teacherApi';
 import { extractErrorMessage } from '../../services/api';
+import { CARD_RADIUS } from '../../theme';
 
 const CARD_BORDER = '1px solid rgba(22,59,56,0.08)';
 
@@ -89,7 +90,7 @@ function ClassRow({ row, subtitle, badge }) {
           size="small"
           variant="outlined"
           startIcon={open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          sx={{ flexShrink: 0, borderRadius: 2, fontWeight: 700 }}
+          sx={{ flexShrink: 0, borderRadius: CARD_RADIUS, fontWeight: 700 }}
         >
           {open ? 'Hide students' : 'View students'}
         </Button>
@@ -98,7 +99,7 @@ function ClassRow({ row, subtitle, badge }) {
       <Collapse in={open} unmountOnExit>
         <Box sx={{ px: 2.5, pb: 2.5 }}>
           {error ? (
-            <Alert severity="error" sx={{ borderRadius: 2 }}>
+            <Alert severity="error" sx={{ borderRadius: CARD_RADIUS }}>
               {error}
             </Alert>
           ) : students === null ? (
@@ -131,7 +132,7 @@ function ClassRow({ row, subtitle, badge }) {
 
 function ClassList({ rows, loading, emptyText, subtitleOf, badge }) {
   return (
-    <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
+    <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
       {loading ? (
         <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}>
           <CircularProgress size={26} aria-label="Loading classes" />
@@ -191,7 +192,7 @@ function TeacherClasses() {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }}>
           {error}
         </Alert>
       )}
@@ -199,7 +200,7 @@ function TeacherClasses() {
       {data !== null && !activeYear ? (
         <Paper
           elevation={0}
-          sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: 'rgba(211,90,70,0.06)', p: 3 }}
+          sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: 'rgba(211,90,70,0.06)', p: 3 }}
         >
           <Typography sx={{ fontWeight: 800, color: '#9C3B2A' }}>No active school year</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>

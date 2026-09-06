@@ -13,7 +13,7 @@ import { Pencil } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchImageObjectUrl } from '../../services/imagesApi';
 import { roleLabel } from '../../utils/roles';
-import { AQUA_GRADIENT } from '../../theme';
+import { AQUA_GRADIENT, CARD_RADIUS } from '../../theme';
 import ResourceFormDialog from '../../components/admin/ResourceFormDialog';
 import { updateResource } from '../../services/adminApi';
 import { extractErrorMessage } from '../../services/api';
@@ -152,7 +152,7 @@ function Profile() {
           <Paper
             elevation={0}
             sx={{
-              borderRadius: 4,
+              borderRadius: CARD_RADIUS,
               border: '1px solid rgba(22,59,56,0.08)',
               backgroundColor: '#FFFFFF',
               p: 4,
@@ -198,7 +198,7 @@ function Profile() {
               onClick={openEdit}
               disabled={!profile}
               startIcon={<Pencil size={16} />}
-              sx={{ mt: 3, borderRadius: 3, textTransform: 'none', fontWeight: 700 }}
+              sx={{ mt: 3, borderRadius: CARD_RADIUS, textTransform: 'none', fontWeight: 700 }}
               variant="outlined"
             >
               Edit profile
@@ -210,7 +210,7 @@ function Profile() {
           <Paper
             elevation={0}
             sx={{
-              borderRadius: 4,
+              borderRadius: CARD_RADIUS,
               border: '1px solid rgba(22,59,56,0.08)',
               backgroundColor: '#FFFFFF',
               p: 4,

@@ -11,6 +11,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { Check, Copy } from 'lucide-react';
 import GradientButton from '../common/GradientButton';
+import { CARD_RADIUS } from '../../theme';
 
 /**
  * The backend generates a temporary password on create and returns it exactly
@@ -39,7 +40,7 @@ function TemporaryPasswordDialog({ open, account, onClose }) {
       <DialogTitle sx={{ fontWeight: 800 }}>Account created</DialogTitle>
 
       <DialogContent>
-        <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 2 }}>
+        <Alert severity="warning" sx={{ mb: 2.5, borderRadius: CARD_RADIUS }}>
           This password is shown once and cannot be retrieved again. Copy it now.
         </Alert>
 
@@ -61,7 +62,7 @@ function TemporaryPasswordDialog({ open, account, onClose }) {
               fontSize: '1rem',
               backgroundColor: 'primary.light',
               color: 'primary.dark',
-              borderRadius: 2,
+              borderRadius: CARD_RADIUS,
               px: 2,
               py: 1.25,
               overflowWrap: 'anywhere',

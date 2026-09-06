@@ -5,13 +5,34 @@ const logger = require('../../utils/logger');
 const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk } = require('../../utils/send-response');
 const { findSoleAccessLevelId } = require('../../utils/access-levels');
-const { validateReviewStatus } = require('../../validations/admission-validation');
+const { findOpenSection, findSectionWithHeadcount } = require('../../utils/section-assignment');
+const { streamImage } = require('../../utils/stream-image');
+const {
+  validateReviewStatus,
+  validateReturnApplication,
+  missingRequirements,
+  REQUIREMENTS_BY_TYPE,
+} = require('../../validations/admission-validation');
 const { validatePagination } = require('../../validations/student-validation');
 
 const STUDENT_ROLE_ID = 3;
 const PASSWORD_LENGTH = 12;
 
-const STATUS_VALUES = ['pending', 'reviewing', 'accepted', 'rejected', 'enrolled'];
+const STATUS_VALUES = ['pending', 'reviewing', 'returned', 'accepted', 'rejected', 'enrolled'];
+
+
+
+
+const ALLOWED_TRANSITIONS = Object.freeze({
+  pending: ['reviewing', 'returned', 'rejected'],
+  reviewing: ['returned', 'rejected', 'accepted'],
+  returned: ['reviewing', 'rejected'],
+  rejected: ['reviewing'],
+  accepted: ['enrolled'],
+  enrolled: [],
+});
+
+const canTransition = (from, to) => (ALLOWED_TRANSITIONS[from] || []).includes(to);
 
 
 const generateTemporaryPassword = () => {
@@ -42,6 +63,11 @@ const APPLICATION_SELECT_FIELDS = `
   admission_applications.reviewed_at,
   admission_applications.student_id,
   admission_applications.created_at,
+  admission_applications.grade_level_id,
+  admission_applications.academic_year_id,
+  admission_applications.enrollment_type,
+  admission_applications.submission_count,
+  admission_applications.returned_at,
   grade_levels.name AS grade_level_name,
   academic_years.name AS academic_year_name,
   COALESCE(
@@ -66,6 +92,30 @@ const findApplication = async (applicationId) => {
   );
 
   return rows[0] || null;
+};
+
+const findApplicationDocuments = async (applicationId) => {
+  const [rows] = await pool.execute(
+    `SELECT id, document_type, original_name, mime_type, size_bytes, created_at
+     FROM admission_documents
+     WHERE application_id = ?
+     ORDER BY id`,
+    [applicationId],
+  );
+
+  return rows;
+};
+
+const findReturnItems = async (applicationId) => {
+  const [rows] = await pool.execute(
+    `SELECT id, item_type, item_key, note, resolved_at, created_at
+     FROM admission_return_items
+     WHERE application_id = ?
+     ORDER BY id`,
+    [applicationId],
+  );
+
+  return rows;
 };
 
 const parseId = (value) => {
@@ -117,8 +167,28 @@ const listApplications = async (req, res) => {
     params,
   );
 
+  const [documentCounts] = rows.length > 0
+    ? await pool.execute(
+      `SELECT application_id, document_type
+       FROM admission_documents
+       WHERE application_id IN (${rows.map(() => '?').join(', ')})`,
+      rows.map((row) => row.id),
+    )
+    : [[]];
+
+  const typesByApplication = documentCounts.reduce((map, row) => {
+    map.set(row.application_id, [...(map.get(row.application_id) || []), row.document_type]);
+    return map;
+  }, new Map());
+
   return sendOk(res, {
-    admissions: rows,
+    admissions: rows.map((row) => ({
+      ...row,
+      missing_document_count: missingRequirements(
+        row.enrollment_type,
+        typesByApplication.get(row.id) || [],
+      ).length,
+    })),
     pagination: { page, limit, total: Number(total), pages: Math.ceil(Number(total) / limit) },
   });
 };
@@ -136,7 +206,63 @@ const getApplicationById = async (req, res) => {
     return sendError(res, HTTP_STATUS.NOT_FOUND, 'Application not found.');
   }
 
-  return sendOk(res, application);
+  const [documents, returnItems] = await Promise.all([
+    findApplicationDocuments(applicationId),
+    findReturnItems(applicationId),
+  ]);
+
+  const presentTypes = documents.map((row) => row.document_type);
+
+
+
+  const suggestion = application.academic_year_id
+    ? await findOpenSection(pool, {
+      gradeLevelId: application.grade_level_id,
+      academicYearId: application.academic_year_id,
+    })
+    : { section: null };
+
+  return sendOk(res, {
+    ...application,
+    documents,
+    return_items: returnItems,
+    required_documents: REQUIREMENTS_BY_TYPE[application.enrollment_type] || [],
+    missing_documents: missingRequirements(application.enrollment_type, presentTypes),
+    suggested_section: suggestion.section
+      ? {
+        id: suggestion.section.id,
+        name: suggestion.section.name,
+        capacity: Number(suggestion.section.capacity),
+        student_count: Number(suggestion.section.student_count),
+        grade_level_name: suggestion.section.grade_level_name,
+      }
+      : null,
+  });
+};
+
+
+
+
+const getApplicationDocument = async (req, res) => {
+  const applicationId = parseId(req.params.id);
+  const documentId = parseId(req.params.documentId);
+
+  if (!applicationId || !documentId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid document id.');
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id, filename, mime_type
+     FROM admission_documents
+     WHERE id = ? AND application_id = ?`,
+    [documentId, applicationId],
+  );
+
+  if (rows.length === 0) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Document not found.');
+  }
+
+  return streamImage(res, rows[0], documentId);
 };
 
 
@@ -161,11 +287,11 @@ const updateStatus = async (req, res) => {
 
   
   
-  if (application.status === 'accepted' || application.status === 'enrolled') {
+  if (!canTransition(application.status, req.body.status)) {
     return sendError(
       res,
       HTTP_STATUS.CONFLICT,
-      'This application has already been accepted and cannot be changed.',
+      `An application that is ${application.status} cannot be marked ${req.body.status}.`,
     );
   }
 
@@ -184,6 +310,100 @@ const updateStatus = async (req, res) => {
 
   return sendOk(res, await findApplication(applicationId));
 };
+
+
+const findActiveAcademicYear = async () => {
+  const [rows] = await pool.execute(
+    "SELECT id, name FROM academic_years WHERE status = 'active' LIMIT 1",
+  );
+
+  return rows[0] || null;
+};
+
+
+
+
+
+const returnApplication = async (req, res) => {
+  const applicationId = parseId(req.params.id);
+
+  if (!applicationId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid application id.');
+  }
+
+  const validationErrors = validateReturnApplication(req.body);
+
+  if (validationErrors.length > 0) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, validationErrors.join(' '));
+  }
+
+  const application = await findApplication(applicationId);
+
+  if (!application) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Application not found.');
+  }
+
+  if (!canTransition(application.status, 'returned')) {
+    return sendError(
+      res,
+      HTTP_STATUS.CONFLICT,
+      `An application that is ${application.status} cannot be returned.`,
+    );
+  }
+
+  const remarks = req.body.review_remarks ? String(req.body.review_remarks).trim() : null;
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  await connection
+    .execute(
+      `UPDATE admission_applications
+       SET status = 'returned', returned_at = CURRENT_TIMESTAMP, review_remarks = ?,
+           reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [remarks, req.user.userId, applicationId],
+    )
+
+
+
+    .then(() =>
+      connection.execute(
+        'DELETE FROM admission_return_items WHERE application_id = ? AND resolved_at IS NULL',
+        [applicationId],
+      ),
+    )
+    .then(() =>
+      Promise.all(
+        req.body.items.map((item) =>
+          connection.execute(
+            `INSERT INTO admission_return_items (application_id, item_type, item_key, note)
+             VALUES (?, ?, ?, ?)`,
+            [
+              applicationId,
+              item.item_type,
+              item.item_key,
+              item.note ? String(item.note).trim() : null,
+            ],
+          ),
+        ),
+      ),
+    )
+    .then(() => connection.commit())
+    .catch((error) => connection.rollback().then(() => Promise.reject(error)))
+    .finally(() => connection.release());
+
+  logger.info(
+    `Admission ${application.reference_number} returned by admin ${req.user.userId} with ${req.body.items.length} item(s)`,
+  );
+
+  return sendOk(res, {
+    ...(await findApplication(applicationId)),
+    return_items: await findReturnItems(applicationId),
+  });
+};
+
+
 
 
 const acceptApplication = async (req, res) => {
@@ -213,6 +433,58 @@ const acceptApplication = async (req, res) => {
       res,
       HTTP_STATUS.CONFLICT,
       'An account already uses this email address. Update the application email or link the existing student manually.',
+    );
+  }
+
+  
+  
+  const academicYear = application.academic_year_id
+    ? { id: application.academic_year_id, name: application.academic_year_name }
+    : await findActiveAcademicYear();
+
+  if (!academicYear) {
+    return sendError(
+      res,
+      HTTP_STATUS.BAD_REQUEST,
+      'No school year is marked active. Set one before approving applications.',
+    );
+  }
+
+  const gradeLevelId = Number(req.body.grade_level_id);
+  const sectionId = Number(req.body.section_id);
+
+  if (!Number.isInteger(gradeLevelId) || gradeLevelId < 1) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Choose a grade level for the student.');
+  }
+
+  if (!Number.isInteger(sectionId) || sectionId < 1) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Choose a section for the student.');
+  }
+
+  const section = await findSectionWithHeadcount(pool, {
+    sectionId,
+    academicYearId: academicYear.id,
+  });
+
+  if (!section) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Section not found.');
+  }
+
+
+
+  if (section.grade_level_id !== gradeLevelId) {
+    return sendError(
+      res,
+      HTTP_STATUS.BAD_REQUEST,
+      `${section.name} does not belong to the grade level you chose.`,
+    );
+  }
+
+  if (Number(section.student_count) >= Number(section.capacity) && req.body.override !== true) {
+    return sendError(
+      res,
+      HTTP_STATUS.BAD_REQUEST,
+      `${section.grade_level_name} ${section.name} is full (${section.student_count}/${section.capacity}).`,
     );
   }
 
@@ -251,14 +523,24 @@ const acceptApplication = async (req, res) => {
           studentId: studentResult.insertId,
         })),
     )
+    .then(async (ids) => {
+      await connection.execute(
+        `INSERT INTO enrollments (student_id, academic_year_id, section_id, enrollment_date, status)
+         VALUES (?, ?, ?, CURDATE(), 'active')`,
+        [ids.studentId, academicYear.id, section.id],
+      );
+
+      return { ...ids, section };
+    })
     .then((ids) =>
       connection
         .execute(
           `UPDATE admission_applications
-           SET status = 'accepted', student_id = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP,
+           SET status = ?, student_id = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP,
                review_remarks = COALESCE(?, review_remarks)
            WHERE id = ?`,
           [
+            'enrolled',
             ids.studentId,
             req.user.userId,
             req.body && req.body.review_remarks ? String(req.body.review_remarks).trim() : null,
@@ -272,7 +554,7 @@ const acceptApplication = async (req, res) => {
     .finally(() => connection.release());
 
   logger.info(
-    `Admission ${application.reference_number} accepted by admin ${req.user.userId}; student ${created.studentId} created`,
+    `Admission ${application.reference_number} accepted by admin ${req.user.userId}; student ${created.studentId} created; enrolled in ${section.grade_level_name} ${section.name}`,
   );
 
   return sendOk(res, {
@@ -282,6 +564,13 @@ const acceptApplication = async (req, res) => {
       user_id: created.userId,
       email: application.email,
       temporary_password: temporaryPassword,
+    },
+    placement: {
+      assigned: true,
+      section_id: section.id,
+      section_name: section.name,
+      grade_level_name: section.grade_level_name,
+      academic_year_name: academicYear.name,
     },
   });
 };
@@ -318,7 +607,9 @@ const deleteApplication = async (req, res) => {
 
 module.exports = {
   listApplications,
+  returnApplication,
   getApplicationById,
+  getApplicationDocument,
   updateStatus,
   acceptApplication: acceptApplicationHandler,
   deleteApplication,

@@ -12,6 +12,7 @@ import TextField from '@mui/material/TextField';
 import GradientButton from '../common/GradientButton';
 import ImageField from './ImageField';
 import { getResource } from '../../services/adminApi';
+import { CARD_RADIUS } from '../../theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -178,7 +179,7 @@ function ResourceFormDialog({
       <form onSubmit={handleSubmit} noValidate>
         <DialogContent dividers>
           {submitError && (
-            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 2.5, borderRadius: CARD_RADIUS }}>
               {submitError}
             </Alert>
           )}
@@ -186,7 +187,7 @@ function ResourceFormDialog({
           {/* Only resources that create a login account get a temporary
               password; a school year has no user behind it. */}
           {!isEdit && resource.createsLoginAccount !== false && (
-            <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
+            <Alert severity="info" sx={{ mb: 2.5, borderRadius: CARD_RADIUS }}>
               A temporary password is generated on save. It is shown once — copy it before closing.
             </Alert>
           )}

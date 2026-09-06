@@ -24,6 +24,15 @@ export const glass = {
   borderRadius: 4,
 };
 
+/**
+ * Dashboard panels use explicit pixel radii. A bare number in `sx` is
+ * multiplied by shape.borderRadius (20), which is how these cards ended up
+ * capsule-shaped: `borderRadius: 4` resolved to 80px, and a browser clamps a
+ * radius to half the shorter side of a ~96px-tall card.
+ */
+export const CARD_RADIUS = '12px';
+export const TILE_RADIUS = '10px';
+
 export const AQUA_GRADIENT = `linear-gradient(135deg, ${AQUA.primary} 0%, ${AQUA.dark} 100%)`;
 
 const theme = createTheme({

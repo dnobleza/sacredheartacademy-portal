@@ -7,7 +7,7 @@ const isPositiveInteger = (value) => {
 
 const validateCreateSection = (payload) => {
   const errors = [];
-  const { name, grade_level_id: gradeLevelId, room } = payload || {};
+  const { name, grade_level_id: gradeLevelId, room, capacity } = payload || {};
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     errors.push('Name is required.');
@@ -23,10 +23,16 @@ const validateCreateSection = (payload) => {
     errors.push('Room must be 50 characters or fewer.');
   }
 
+  
+  
+  if (isProvided(capacity) && !isPositiveInteger(capacity)) {
+    errors.push('Capacity must be a positive whole number.');
+  }
+
   return errors;
 };
 
-const UPDATABLE_FIELDS = ['name', 'grade_level_id', 'room'];
+const UPDATABLE_FIELDS = ['name', 'grade_level_id', 'room', 'capacity'];
 
 const validateUpdateSection = (payload) => {
   const errors = [];
@@ -54,6 +60,10 @@ const validateUpdateSection = (payload) => {
 
   if (provided.includes('room') && isProvided(body.room) && (typeof body.room !== 'string' || body.room.length > 50)) {
     errors.push('Room must be 50 characters or fewer.');
+  }
+
+  if (provided.includes('capacity') && !isPositiveInteger(body.capacity)) {
+    errors.push('Capacity must be a positive whole number.');
   }
 
   return errors;

@@ -17,7 +17,7 @@ import AdmissionFormDialog from './AdmissionFormDialog';
 import Logo from '../common/Logo';
 import { glass } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
-import { roleHome } from '../../utils/roles';
+import { portalHome } from '../../utils/roles';
 import { navLinks, school } from '../../data/landing';
 
 // A dropdown child is one of three things: a route (`to`), an in-page anchor
@@ -32,7 +32,7 @@ const childComponent = (child) => {
 
 function Navbar() {
   const { isAuthenticated, user } = useAuth();
-  const portalPath = isAuthenticated ? roleHome(user.role) : '/login';
+  const portalPath = isAuthenticated ? portalHome(user) : '/login';
   const portalLabel = isAuthenticated ? 'Go to Portal' : 'Student Portal';
 
   const [open, setOpen] = useState(false);

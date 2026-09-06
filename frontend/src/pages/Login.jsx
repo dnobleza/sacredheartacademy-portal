@@ -15,7 +15,7 @@ import Logo from '../components/common/Logo';
 import GradientButton from '../components/common/GradientButton';
 import { useAuth } from '../context/AuthContext';
 import { extractErrorMessage } from '../services/api';
-import { roleHome } from '../utils/roles';
+import { portalHome } from '../utils/roles';
 import { glass, AQUA } from '../theme';
 import { school } from '../data/landing';
 
@@ -52,7 +52,7 @@ function Login() {
 
   // Already signed in — skip the form entirely.
   if (status === 'authenticated') {
-    return <Navigate to={location.state?.from?.pathname || roleHome(user.role)} replace />;
+    return <Navigate to={location.state?.from?.pathname || portalHome(user)} replace />;
   }
 
   const handleChange = (field) => (event) => {
@@ -78,7 +78,7 @@ function Login() {
 
     try {
       const signedIn = await login(values.email.trim(), values.password);
-      const destination = location.state?.from?.pathname || roleHome(signedIn.role);
+      const destination = location.state?.from?.pathname || portalHome(signedIn);
       navigate(destination, { replace: true });
     } catch (error) {
       // The server answers wrong-email and wrong-password identically on

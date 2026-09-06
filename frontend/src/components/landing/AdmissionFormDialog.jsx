@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { X } from 'lucide-react';
-import AdmissionForm from './AdmissionForm';
+import AdmissionWizard from './AdmissionWizard';
 
 /**
  * The application form as a dialog, opened from the navbar's Admissions
@@ -63,7 +63,7 @@ function AdmissionFormDialog({ open, onClose }) {
       </DialogTitle>
 
       <DialogContent dividers>
-        <AdmissionForm onStateChange={handleStateChange} />
+        <AdmissionWizard onStateChange={handleStateChange} />
       </DialogContent>
     </Dialog>
   );

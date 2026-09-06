@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -26,15 +26,22 @@ import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { Check, Copy, Search, Trash2, X } from 'lucide-react';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import { Check, Copy, CornerUpLeft, FileText, Search, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
   acceptAdmission,
   deleteAdmission,
   fetchAdmissions,
+  fetchAdmission,
+  fetchAdmissionDocumentUrl,
+  returnAdmission,
   updateAdmissionStatus,
 } from '../../services/admissionsApi';
 import { extractErrorMessage } from '../../services/api';
+import { fetchSectionCapacity } from '../../services/enrollmentsApi';
+import { CARD_RADIUS } from '../../theme';
 
 const DASH = '—';
 const CARD_BORDER = '1px solid rgba(22,59,56,0.08)';
@@ -44,6 +51,7 @@ const STATUS_FILTERS = [
   { value: '', label: 'All statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'reviewing', label: 'Reviewing' },
+  { value: 'returned', label: 'Returned' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'enrolled', label: 'Enrolled' },
@@ -53,6 +61,7 @@ const STATUS_FILTERS = [
 const STATUS_COLORS = {
   pending: { backgroundColor: 'rgba(32,191,169,0.14)', color: 'primary.dark' },
   reviewing: { backgroundColor: 'rgba(255,193,7,0.18)', color: '#8A6100' },
+  returned: { backgroundColor: 'rgba(211,90,70,0.12)', color: '#9C3B2A' },
   accepted: { backgroundColor: 'rgba(21,154,137,0.18)', color: 'primary.dark' },
   rejected: { backgroundColor: 'rgba(211,90,70,0.16)', color: '#9C3B2A' },
   enrolled: { backgroundColor: 'rgba(21,154,137,0.24)', color: 'primary.dark' },
@@ -86,6 +95,44 @@ function StatusChip({ status }) {
   );
 }
 
+const DOCUMENT_LABELS = {
+  good_moral: 'Good Moral Certificate',
+  form_137: 'Form 137',
+  psa_birth_certificate: 'PSA Birth Certificate',
+  id_picture: '2x2 ID Picture',
+};
+
+// Mirrors RETURNABLE_FIELDS in backend/src/validations/admission-validation.js.
+const RETURNABLE_FIELDS = {
+  first_name: 'First name',
+  middle_name: 'Middle name',
+  last_name: 'Last name',
+  birth_date: 'Birth date',
+  gender: 'Gender',
+  address: 'Home address',
+  contact_number: 'Mobile number',
+  previous_school: 'Previous school',
+  guardian_name: 'Parent or guardian name',
+  guardian_relationship: 'Relationship',
+  guardian_contact_number: 'Parent or guardian mobile',
+  guardian_email: 'Parent or guardian email',
+};
+
+const ENROLLMENT_TYPE_LABELS = {
+  new: 'New Student',
+  returning: 'Returning Student',
+  transferee: 'Transferee',
+};
+
+const formatBytes = (bytes) => {
+  if (!bytes) {
+    return '';
+  }
+
+  const kb = bytes / 1024;
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+};
+
 function DetailRow({ label, value }) {
   return (
     <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ py: 1 }}>
@@ -113,6 +160,11 @@ function AdmissionsPage() {
   const [error, setError] = useState('');
 
   const [selected, setSelected] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [detail, setDetail] = useState(null);
+  const [sections, setSections] = useState([]);
+  const [returnDraft, setReturnDraft] = useState(null);
+  const [placement, setPlacement] = useState({ grade_level_id: '', section_id: '' });
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmAccept, setConfirmAccept] = useState(null);
@@ -135,6 +187,12 @@ function AdmissionsPage() {
       .finally(() => setLoading(false));
   }, [page, rowsPerPage, search, status]);
 
+  useEffect(() => {
+    fetchSectionCapacity()
+      .then((data) => setSections(data.sections))
+      .catch(() => setSections([]));
+  }, []);
+
   // Debounced so typing in the search box does not fire a request per keystroke.
   useEffect(() => {
     const timer = setTimeout(load, 250);
@@ -145,6 +203,35 @@ function AdmissionsPage() {
     setSelected(row);
     setRemarks(row.review_remarks || '');
     setError('');
+
+    
+    
+    setDocuments([]);
+    setDetail(null);
+    fetchAdmission(row.id)
+      .then((full) => {
+        setDocuments(full.documents || []);
+        setDetail(full);
+
+
+
+        setPlacement({
+          grade_level_id: full.grade_level_id || '',
+          section_id: full.suggested_section?.id || '',
+        });
+      })
+      .catch(() => setToast('Could not load the application details.'));
+  };
+
+  
+  
+  const openDocument = (documentId) => {
+    fetchAdmissionDocumentUrl(selected.id, documentId)
+      .then((url) => {
+        window.open(url, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      })
+      .catch(() => setToast('Could not open that document.'));
   };
 
   const runAction = async (action, successMessage) => {
@@ -174,19 +261,70 @@ function AdmissionsPage() {
     }
   };
 
-  const handleAccept = async () => {
+  const handleAccept = async (override = false) => {
     const application = confirmAccept;
     setConfirmAccept(null);
 
     const result = await runAction(
-      () => acceptAdmission(application.id),
-      'Application accepted and student account created.',
+      () =>
+        acceptAdmission(application.id, {
+          grade_level_id: Number(placement.grade_level_id),
+          section_id: Number(placement.section_id),
+          review_remarks: remarks || null,
+          ...(override ? { override: true } : {}),
+        }),
+      'Application approved, student enrolled.',
     );
 
     if (result) {
       setSelected(result.application);
       // Shown once: the password is hashed server-side and cannot be read back.
-      setCredentials(result.student);
+      setCredentials({ ...result.student, placement: result.placement });
+    }
+  };
+
+  const toggleReturnItem = (itemType, itemKey) =>
+    setReturnDraft((current) => {
+      const items = current.items.filter(
+        (item) => !(item.item_type === itemType && item.item_key === itemKey),
+      );
+
+      const wasSelected = items.length !== current.items.length;
+
+      return {
+        ...current,
+        items: wasSelected ? items : [...items, { item_type: itemType, item_key: itemKey, note: '' }],
+      };
+    });
+
+  const setReturnNote = (itemType, itemKey, note) =>
+    setReturnDraft((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.item_type === itemType && item.item_key === itemKey ? { ...item, note } : item,
+      ),
+    }));
+
+  const handleReturn = async () => {
+    const draft = returnDraft;
+    setReturnDraft(null);
+
+    const result = await runAction(
+      () =>
+        returnAdmission(draft.id, {
+          items: draft.items.map((item) => ({
+            item_type: item.item_type,
+            item_key: item.item_key,
+            note: item.note ? item.note.trim() : null,
+          })),
+          review_remarks: draft.remarks || null,
+        }),
+      'Application returned to the applicant.',
+    );
+
+    if (result) {
+      setSelected(result);
+      setDetail((current) => (current ? { ...current, return_items: result.return_items } : current));
     }
   };
 
@@ -203,6 +341,30 @@ function AdmissionsPage() {
 
   const settled = selected?.status === 'accepted' || selected?.status === 'enrolled';
 
+  // Grade levels come from the section list rather than a second request:
+  // a grade with no section cannot receive a student anyway.
+  const gradeLevelOptions = useMemo(() => {
+    const seen = new Map();
+
+    sections.forEach((section) => {
+      if (!seen.has(section.grade_level_id)) {
+        seen.set(section.grade_level_id, section.grade_level_name);
+      }
+    });
+
+    return [...seen.entries()].map(([id, name]) => ({ id, name }));
+  }, [sections]);
+
+  const sectionOptions = useMemo(
+    () => sections.filter((section) => section.grade_level_id === Number(placement.grade_level_id)),
+    [sections, placement.grade_level_id],
+  );
+
+  const chosenSection = sections.find((section) => section.id === Number(placement.section_id));
+  const wouldOverfill = Boolean(
+    chosenSection && Number(chosenSection.student_count) >= Number(chosenSection.capacity),
+  );
+
   return (
     <Box>
       <Typography variant="h2" component="h1" sx={{ fontSize: { xs: '1.6rem', md: '2rem' } }}>
@@ -214,7 +376,7 @@ function AdmissionsPage() {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError('')}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: CARD_RADIUS }} onClose={() => setError('')}>
           {error}
         </Alert>
       )}
@@ -259,7 +421,7 @@ function AdmissionsPage() {
         </TextField>
       </Stack>
 
-      <Paper elevation={0} sx={{ borderRadius: 4, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
+      <Paper elevation={0} sx={{ borderRadius: CARD_RADIUS, border: CARD_BORDER, backgroundColor: '#FFFFFF' }}>
         <TableContainer>
           <Table>
             <TableHead>
@@ -329,7 +491,16 @@ function AdmissionsPage() {
         {selected && (
           <Box>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Typography variant="h5">{selected.reference_number}</Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="h5">{selected.reference_number}</Typography>
+                {selected.submission_count > 1 && (
+                  <Chip
+                    size="small"
+                    label={`Submitted ${selected.submission_count}×`}
+                    sx={{ fontWeight: 700 }}
+                  />
+                )}
+              </Stack>
               <IconButton onClick={() => setSelected(null)} aria-label="Close">
                 <X size={18} />
               </IconButton>
@@ -347,6 +518,10 @@ function AdmissionsPage() {
             <Typography sx={{ fontWeight: 800, mt: 2 }}>Applicant</Typography>
             <Divider sx={{ borderColor: 'rgba(22,59,56,0.08)' }} />
             <DetailRow label="Name" value={fullName(selected)} />
+            <DetailRow
+              label="Enrollment type"
+              value={ENROLLMENT_TYPE_LABELS[selected.enrollment_type] || selected.enrollment_type}
+            />
             <DetailRow label="Grade level" value={selected.grade_level_name} />
             <DetailRow label="School year" value={selected.academic_year_name} />
             <DetailRow label="Birth date" value={formatDate(selected.birth_date)} />
@@ -372,10 +547,105 @@ function AdmissionsPage() {
               </>
             )}
 
+            <Typography sx={{ fontWeight: 800, mt: 3, mb: 1 }}>Documents</Typography>
+
+            <Stack spacing={1}>
+              {Object.entries(DOCUMENT_LABELS).map(([type, label]) => {
+                const document = documents.find((row) => row.document_type === type);
+
+                return (
+                  <Stack
+                    key={type}
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ border: CARD_BORDER, borderRadius: CARD_RADIUS, p: 1.5 }}
+                  >
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        color: document ? 'primary.dark' : 'text.disabled',
+                        display: 'flex',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <FileText size={18} />
+                    </Box>
+
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {label}
+                        </Typography>
+                        {(detail?.required_documents || []).includes(type) && (
+                          <Chip
+                            size="small"
+                            label={document ? 'Required' : 'Required · missing'}
+                            color={document ? 'default' : 'warning'}
+                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }}
+                          />
+                        )}
+                      </Stack>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+                        {document
+                          ? `${document.original_name || 'Attached'} · ${formatBytes(document.size_bytes)}`
+                          : 'Not submitted'}
+                      </Typography>
+                    </Box>
+
+                    {document && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => openDocument(document.id)}
+                        sx={{ ml: 'auto', flexShrink: 0, borderRadius: CARD_RADIUS, fontWeight: 700 }}
+                      >
+                        View
+                      </Button>
+                    )}
+                  </Stack>
+                );
+              })}
+            </Stack>
+
+            {(detail?.return_items || []).length > 0 && (
+              <>
+                <Typography sx={{ fontWeight: 800, mt: 3, mb: 1 }}>Returned items</Typography>
+                <Stack spacing={1}>
+                  {detail.return_items.map((item) => (
+                    <Stack
+                      key={item.id}
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      sx={{ border: CARD_BORDER, borderRadius: CARD_RADIUS, p: 1.5 }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {DOCUMENT_LABELS[item.item_key]
+                            || RETURNABLE_FIELDS[item.item_key]
+                            || item.item_key}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {item.note || 'No note'}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        size="small"
+                        label={item.resolved_at ? 'Fixed' : 'Waiting'}
+                        color={item.resolved_at ? 'success' : 'warning'}
+                        sx={{ ml: 'auto', fontWeight: 700 }}
+                      />
+                    </Stack>
+                  ))}
+                </Stack>
+              </>
+            )}
+
             <Typography sx={{ fontWeight: 800, mt: 3, mb: 1 }}>Review</Typography>
 
             {settled ? (
-              <Alert severity="success" sx={{ borderRadius: 2 }}>
+              <Alert severity="success" sx={{ borderRadius: CARD_RADIUS }}>
                 This application was accepted
                 {selected.student_id ? ` and is linked to student #${selected.student_id}` : ''}. It
                 can no longer be changed.
@@ -399,7 +669,7 @@ function AdmissionsPage() {
                     disabled={busy || selected.status === 'reviewing'}
                     variant="outlined"
                     size="small"
-                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                    sx={{ borderRadius: CARD_RADIUS, fontWeight: 700 }}
                   >
                     Mark reviewing
                   </Button>
@@ -409,16 +679,28 @@ function AdmissionsPage() {
                     variant="contained"
                     size="small"
                     startIcon={<Check size={16} />}
-                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                    sx={{ borderRadius: CARD_RADIUS, fontWeight: 700 }}
                   >
                     Accept
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      setReturnDraft({ id: selected.id, items: [], remarks: remarks || '' })
+                    }
+                    disabled={busy || selected.status === 'returned'}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<CornerUpLeft size={16} />}
+                    sx={{ borderRadius: CARD_RADIUS, fontWeight: 700 }}
+                  >
+                    Return to applicant
                   </Button>
                   <Button
                     onClick={() => handleStatus('rejected')}
                     disabled={busy || selected.status === 'rejected'}
                     color="error"
                     size="small"
-                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                    sx={{ borderRadius: CARD_RADIUS, fontWeight: 700 }}
                   >
                     Reject
                   </Button>
@@ -433,7 +715,7 @@ function AdmissionsPage() {
                 color="error"
                 size="small"
                 startIcon={<Trash2 size={16} />}
-                sx={{ mt: 3, borderRadius: 2, fontWeight: 700 }}
+                sx={{ mt: 3, borderRadius: CARD_RADIUS, fontWeight: 700 }}
               >
                 Delete application
               </Button>
@@ -443,20 +725,74 @@ function AdmissionsPage() {
       </Drawer>
 
       <Dialog open={Boolean(confirmAccept)} onClose={() => setConfirmAccept(null)}>
-        <DialogTitle>Accept this application?</DialogTitle>
+        <DialogTitle>Approve this application?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>
             This creates a student account for {confirmAccept ? fullName(confirmAccept) : ''} using{' '}
-            {confirmAccept?.email} and shows a temporary password once. Assigning a section stays a
-            separate step on the Classes screen.
+            {confirmAccept?.email}, enrolls them in the section you choose, and shows a temporary
+            password once.
           </DialogContentText>
+
+          <Stack spacing={2}>
+            <TextField
+              select
+              label="Grade level"
+              value={placement.grade_level_id}
+              onChange={(event) =>
+                setPlacement({ grade_level_id: event.target.value, section_id: '' })
+              }
+              size="small"
+              fullWidth
+            >
+              {gradeLevelOptions.map((level) => (
+                <MenuItem key={level.id} value={level.id}>
+                  {level.name}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              label="Section"
+              value={placement.section_id}
+              onChange={(event) =>
+                setPlacement((current) => ({ ...current, section_id: event.target.value }))
+              }
+              helperText={
+                detail?.suggested_section
+                  ? `Suggested: ${detail.suggested_section.grade_level_name} ${detail.suggested_section.name}`
+                  : 'No section in that grade level has room — pick one to over-fill it.'
+              }
+              size="small"
+              fullWidth
+            >
+              {sectionOptions.length === 0 ? (
+                <MenuItem value="" disabled>
+                  No sections for that grade level
+                </MenuItem>
+              ) : (
+                sectionOptions.map((section) => (
+                  <MenuItem key={section.id} value={section.id}>
+                    {`${section.grade_level_name} · ${section.name} (${section.student_count}/${section.capacity})`}
+                    {Number(section.student_count) >= Number(section.capacity) ? ' · full' : ''}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmAccept(null)} sx={{ textTransform: 'none' }}>
             Cancel
           </Button>
-          <Button onClick={handleAccept} variant="contained" sx={{ textTransform: 'none', fontWeight: 700 }}>
-            Accept and create account
+          <Button
+            onClick={() => handleAccept(wouldOverfill)}
+            disabled={!placement.grade_level_id || !placement.section_id}
+            variant="contained"
+            color={wouldOverfill ? 'warning' : 'primary'}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            {wouldOverfill ? 'Over-fill and enroll' : 'Approve and enroll'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -486,7 +822,19 @@ function AdmissionsPage() {
             a new one from the Students screen if it is lost.
           </DialogContentText>
 
-          <Paper elevation={0} sx={{ border: CARD_BORDER, borderRadius: 2, p: 2 }}>
+          {credentials?.placement?.assigned ? (
+            <Alert severity="success" sx={{ borderRadius: CARD_RADIUS, mb: 2 }}>
+              Enrolled in {credentials.placement.grade_level_name}{' '}
+              {credentials.placement.section_name} for {credentials.placement.academic_year_name}.
+            </Alert>
+          ) : (
+            <Alert severity="warning" sx={{ borderRadius: CARD_RADIUS, mb: 2 }}>
+              {credentials?.placement?.reason || 'The student was not enrolled.'} Place them from
+              the Enrollment screen.
+            </Alert>
+          )}
+
+          <Paper elevation={0} sx={{ border: CARD_BORDER, borderRadius: CARD_RADIUS, p: 2 }}>
             <DetailRow label="Email" value={credentials?.email} />
             <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
               <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
@@ -515,6 +863,114 @@ function AdmissionsPage() {
         <DialogActions>
           <Button onClick={() => setCredentials(null)} variant="contained" sx={{ textTransform: 'none', fontWeight: 700 }}>
             Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(returnDraft)}
+        onClose={() => setReturnDraft(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Return to the applicant</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Tick everything that needs fixing. The applicant sees exactly this list, with your
+            notes, on the status page — and can only resubmit what you flag.
+          </DialogContentText>
+
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>Documents</Typography>
+          <Stack spacing={0.5} sx={{ mb: 2 }}>
+            {Object.entries(DOCUMENT_LABELS).map(([type, label]) => {
+              const item = returnDraft?.items.find(
+                (entry) => entry.item_type === 'document' && entry.item_key === type,
+              );
+
+              return (
+                <Box key={type}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={Boolean(item)}
+                        onChange={() => toggleReturnItem('document', type)}
+                      />
+                    }
+                    label={label}
+                  />
+                  {item && (
+                    <TextField
+                      value={item.note}
+                      onChange={(event) => setReturnNote('document', type, event.target.value)}
+                      placeholder="What is wrong with it?"
+                      size="small"
+                      fullWidth
+                      sx={{ ml: 4, mb: 1, maxWidth: 'calc(100% - 32px)' }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>Information</Typography>
+          <Stack spacing={0.5} sx={{ mb: 2 }}>
+            {Object.entries(RETURNABLE_FIELDS).map(([field, label]) => {
+              const item = returnDraft?.items.find(
+                (entry) => entry.item_type === 'information' && entry.item_key === field,
+              );
+
+              return (
+                <Box key={field}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={Boolean(item)}
+                        onChange={() => toggleReturnItem('information', field)}
+                      />
+                    }
+                    label={label}
+                  />
+                  {item && (
+                    <TextField
+                      value={item.note}
+                      onChange={(event) => setReturnNote('information', field, event.target.value)}
+                      placeholder="What should it say?"
+                      size="small"
+                      fullWidth
+                      sx={{ ml: 4, mb: 1, maxWidth: 'calc(100% - 32px)' }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+
+          <TextField
+            value={returnDraft?.remarks || ''}
+            onChange={(event) =>
+              setReturnDraft((current) => ({ ...current, remarks: event.target.value }))
+            }
+            label="Overall remarks (optional)"
+            size="small"
+            fullWidth
+            multiline
+            minRows={2}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReturnDraft(null)} sx={{ textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleReturn}
+            disabled={!returnDraft || returnDraft.items.length === 0}
+            variant="contained"
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Return application
           </Button>
         </DialogActions>
       </Dialog>

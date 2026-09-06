@@ -32,6 +32,7 @@ export const navLinks = [
     children: [
       { label: 'How to apply', href: '#admissions' },
       { label: 'Application form', action: 'admission-form' },
+      { label: 'Check my application', to: '/admissions/status' },
     ],
   },
   { label: 'Student Life', id: 'student-life' },
