@@ -88,6 +88,46 @@ export const resubmitApplication = async ({ reference, email, fields, documents 
 
 
 /**
+ * An applicant reporting a payment from the status page. Always multipart, so
+ * a proof photo rides along with the details; the applicant has no account, so
+ * reference number and email are the credentials.
+ */
+export const declarePaymentForApplication = async ({ reference, email, fields, proof }) => {
+  const body = new FormData();
+  body.append('email', email);
+
+  Object.entries(fields || {}).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      body.append(key, value);
+    }
+  });
+
+  if (proof) {
+    body.append('proof', proof);
+  }
+
+  const response = await publicApi.post(`/admissions/${reference}/declare-payment`, body, {
+    headers: { 'Content-Type': undefined },
+  });
+
+  return response.data.data;
+};
+
+
+/**
+ * The receipt for one confirmed payment. Reference plus email are the
+ * credentials, exactly as for the status lookup.
+ */
+export const fetchApplicationReceipt = async ({ reference, email, paymentId }) => {
+  const response = await publicApi.get(`/admissions/${reference}/receipt/${paymentId}`, {
+    params: { email },
+  });
+
+  return response.data.data;
+};
+
+
+/**
  * The school's public news feed. The server returns only announcements posted
  * to everyone, and deliberately carries no author — the public site credits
  * the school itself.

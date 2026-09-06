@@ -16,6 +16,9 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import {
+  AlertTriangle,
+  Banknote,
+  Bell,
   BookOpen,
   CalendarClock,
   CalendarDays,
@@ -34,7 +37,9 @@ import {
   Menu as MenuIcon,
   MessageSquare,
   Presentation,
+  ReceiptText,
   ShieldCheck,
+  Wallet,
   UserCircle,
   Users,
   Users2,
@@ -43,13 +48,20 @@ import {
 import Logo from '../components/common/Logo';
 import NotificationBell from '../components/common/NotificationBell';
 import { fetchUnreadMessageCount } from '../services/messagesApi';
+import { fetchAdmissions } from '../services/admissionsApi';
+import { fetchDeclarations } from '../services/declarationsApi';
 import { useAuth } from '../context/AuthContext';
 import { roleLabel } from '../utils/roles';
-import { glass, AQUA } from '../theme';
+import { AQUA, CARD_RADIUS, glass } from '../theme';
 import { school } from '../data/landing';
 
 const ICONS = {
   LayoutDashboard,
+  AlertTriangle,
+  Banknote,
+  Bell,
+  ReceiptText,
+  Wallet,
   GraduationCap,
   Presentation,
   ShieldCheck,
@@ -95,7 +107,7 @@ const navLinkSx = (collapsed) => ({
   px: collapsed ? 0 : 2,
   justifyContent: collapsed ? 'center' : 'flex-start',
   py: 1.25,
-  borderRadius: 2.5,
+  borderRadius: CARD_RADIUS,
   textDecoration: 'none',
   color: 'text.secondary',
   fontWeight: 600,
@@ -126,17 +138,23 @@ const visibleNav = (items, level) =>
 const UNREAD_POLL_INTERVAL_MS = 30000;
 
 /**
- * Unread messages addressed to the viewer, for the nav badge. A failed poll
- * keeps the last known count rather than flashing the badge away.
+ * Polls a count for a nav badge. A failed poll keeps the last known number
+ * rather than flashing the badge away, and `enabled` keeps a portal from
+ * calling an endpoint its role has no business hitting.
  */
-const useUnreadMessageCount = () => {
+const usePolledCount = (loader, enabled) => {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (!enabled) {
+      setCount(0);
+      return undefined;
+    }
+
     let cancelled = false;
 
     const load = () => {
-      fetchUnreadMessageCount()
+      loader()
         .then((value) => {
           if (!cancelled) {
             setCount(value);
@@ -152,20 +170,39 @@ const useUnreadMessageCount = () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+    // loader is a module-level function per badge type, so it is stable.
+  }, [enabled]);
 
   return count;
 };
 
+
+
+
+const loadPendingAdmissionCount = () =>
+  fetchAdmissions({ status: 'pending', limit: 1 }).then((data) => data.pagination.total);
+
+
+
+
+const loadPendingDeclarationCount = () =>
+  fetchDeclarations('pending').then((data) => data.pending_count);
+
 // A group shows the total of its children so a collapsed rail or a closed
 // group still reveals that something is waiting.
-const badgeCountFor = (item, unreadMessages) => {
+const badgeCountFor = (item, counts) => {
   if (item.children) {
-    return item.children.reduce((total, child) => total + badgeCountFor(child, unreadMessages), 0);
+    return item.children.reduce((total, child) => total + badgeCountFor(child, counts), 0);
   }
 
-  return item.badge === 'messages' ? unreadMessages : 0;
+  return counts[item.badge] || 0;
 };
+
+
+
+
+const navHasBadge = (items, badge) =>
+  items.some((item) => (item.children ? navHasBadge(item.children, badge) : item.badge === badge));
 
 function NavBadge({ count, children }) {
   if (!count) {
@@ -185,7 +222,22 @@ function NavBadge({ count, children }) {
 }
 
 function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onLogout, signingOut }) {
-  const unreadMessages = useUnreadMessageCount();
+  const unreadMessages = usePolledCount(fetchUnreadMessageCount, true);
+  // Only the portals whose nav actually shows the badge poll for it — a
+  // teacher has no business calling the admin admissions endpoint.
+  const pendingAdmissions = usePolledCount(
+    loadPendingAdmissionCount,
+    navHasBadge(nav, 'admissions'),
+  );
+  const pendingDeclarations = usePolledCount(
+    loadPendingDeclarationCount,
+    navHasBadge(nav, 'declarations'),
+  );
+  const badgeCounts = {
+    messages: unreadMessages,
+    admissions: pendingAdmissions,
+    declarations: pendingDeclarations,
+  };
   const location = useLocation();
   const { user } = useAuth();
 
@@ -311,7 +363,7 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                 }}
               >
                 <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                  <NavBadge count={badgeCountFor(item, unreadMessages)}>
+                  <NavBadge count={badgeCountFor(item, badgeCounts)}>
                     <GroupIcon size={20} strokeWidth={2} />
                   </NavBadge>
                 </Box>
@@ -371,7 +423,7 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                               sx={navLinkSx(false)}
                             >
                               <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                                <NavBadge count={badgeCountFor(child, unreadMessages)}>
+                                <NavBadge count={badgeCountFor(child, badgeCounts)}>
                                   <ChildIcon size={18} strokeWidth={2} />
                                 </NavBadge>
                               </Box>
@@ -391,7 +443,7 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                     onClose={closePopover}
                     anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
                     transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                    slotProps={{ paper: { sx: { ml: 1, borderRadius: 2.5 } } }}
+                    slotProps={{ paper: { sx: { ml: 1, borderRadius: CARD_RADIUS } } }}
                   >
                     <MenuList aria-label={item.label} sx={{ minWidth: 180 }}>
                       {item.children.map((child) => {
@@ -414,7 +466,7 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
                               backgroundColor: childActive ? 'primary.light' : 'transparent',
                             }}
                           >
-                            <NavBadge count={badgeCountFor(child, unreadMessages)}>
+                            <NavBadge count={badgeCountFor(child, badgeCounts)}>
                               <ChildIcon size={18} strokeWidth={2} />
                             </NavBadge>
                             {child.label}
@@ -440,7 +492,7 @@ function SidebarContent({ nav, portalLabel, collapsed, onNavigate, onToggle, onL
               sx={navLinkSx(collapsed)}
             >
               <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>
-                <NavBadge count={badgeCountFor(item, unreadMessages)}>
+                <NavBadge count={badgeCountFor(item, badgeCounts)}>
                   <Icon size={20} strokeWidth={2} />
                 </NavBadge>
               </Box>

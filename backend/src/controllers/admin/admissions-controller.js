@@ -6,7 +6,13 @@ const HTTP_STATUS = require('../../utils/http-status');
 const { sendError, sendOk } = require('../../utils/send-response');
 const { findSoleAccessLevelId } = require('../../utils/access-levels');
 const { findOpenSection, findSectionWithHeadcount } = require('../../utils/section-assignment');
+const {
+  applyFeeSchedule,
+  assignStudentNumber,
+  getDownpaymentRequirement,
+} = require('../../utils/billing');
 const { streamImage } = require('../../utils/stream-image');
+const { notifyUser } = require('../../utils/notifications');
 const {
   validateReviewStatus,
   validateReturnApplication,
@@ -181,13 +187,26 @@ const listApplications = async (req, res) => {
     return map;
   }, new Map());
 
+
+
+
+  const downpayments = await Promise.all(
+    rows.map((row) =>
+      row.student_id && row.academic_year_id
+        ? getDownpaymentRequirement(row.student_id, row.academic_year_id)
+        : Promise.resolve(null),
+    ),
+  );
+
   return sendOk(res, {
-    admissions: rows.map((row) => ({
+    admissions: rows.map((row, index) => ({
       ...row,
       missing_document_count: missingRequirements(
         row.enrollment_type,
         typesByApplication.get(row.id) || [],
       ).length,
+      downpayment: downpayments[index],
+      ready_to_enroll: row.status === 'accepted' && Boolean(downpayments[index]?.satisfied),
     })),
     pagination: { page, limit, total: Number(total), pages: Math.ceil(Number(total) / limit) },
   });
@@ -222,10 +241,16 @@ const getApplicationById = async (req, res) => {
     })
     : { section: null };
 
+  const downpayment = application.student_id && application.academic_year_id
+    ? await getDownpaymentRequirement(application.student_id, application.academic_year_id)
+    : null;
+
   return sendOk(res, {
     ...application,
     documents,
     return_items: returnItems,
+    downpayment,
+    ready_to_enroll: application.status === 'accepted' && Boolean(downpayment?.satisfied),
     required_documents: REQUIREMENTS_BY_TYPE[application.enrollment_type] || [],
     missing_documents: missingRequirements(application.enrollment_type, presentTypes),
     suggested_section: suggestion.section
@@ -450,44 +475,6 @@ const acceptApplication = async (req, res) => {
     );
   }
 
-  const gradeLevelId = Number(req.body.grade_level_id);
-  const sectionId = Number(req.body.section_id);
-
-  if (!Number.isInteger(gradeLevelId) || gradeLevelId < 1) {
-    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Choose a grade level for the student.');
-  }
-
-  if (!Number.isInteger(sectionId) || sectionId < 1) {
-    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Choose a section for the student.');
-  }
-
-  const section = await findSectionWithHeadcount(pool, {
-    sectionId,
-    academicYearId: academicYear.id,
-  });
-
-  if (!section) {
-    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Section not found.');
-  }
-
-
-
-  if (section.grade_level_id !== gradeLevelId) {
-    return sendError(
-      res,
-      HTTP_STATUS.BAD_REQUEST,
-      `${section.name} does not belong to the grade level you chose.`,
-    );
-  }
-
-  if (Number(section.student_count) >= Number(section.capacity) && req.body.override !== true) {
-    return sendError(
-      res,
-      HTTP_STATUS.BAD_REQUEST,
-      `${section.grade_level_name} ${section.name} is full (${section.student_count}/${section.capacity}).`,
-    );
-  }
-
   const accessLevelId = await findSoleAccessLevelId(STUDENT_ROLE_ID);
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
@@ -524,13 +511,15 @@ const acceptApplication = async (req, res) => {
         })),
     )
     .then(async (ids) => {
-      await connection.execute(
-        `INSERT INTO enrollments (student_id, academic_year_id, section_id, enrollment_date, status)
-         VALUES (?, ?, ?, CURDATE(), 'active')`,
-        [ids.studentId, academicYear.id, section.id],
-      );
+      const studentNumber = await assignStudentNumber(connection, ids.studentId);
 
-      return { ...ids, section };
+      await applyFeeSchedule(connection, {
+        studentId: ids.studentId,
+        academicYearId: academicYear.id,
+        gradeLevelId: application.grade_level_id,
+      });
+
+      return { ...ids, studentNumber };
     })
     .then((ids) =>
       connection
@@ -540,7 +529,7 @@ const acceptApplication = async (req, res) => {
                review_remarks = COALESCE(?, review_remarks)
            WHERE id = ?`,
           [
-            'enrolled',
+            'accepted',
             ids.studentId,
             req.user.userId,
             req.body && req.body.review_remarks ? String(req.body.review_remarks).trim() : null,
@@ -553,8 +542,22 @@ const acceptApplication = async (req, res) => {
     .catch((error) => connection.rollback().then(() => Promise.reject(error)))
     .finally(() => connection.release());
 
+  const downpayment = await getDownpaymentRequirement(created.studentId, academicYear.id);
+
+
+
+
+  await notifyUser({
+    userId: created.userId,
+    title: 'Application approved',
+    message: downpayment.required > 0
+      ? `Your application is approved. Pay the downpayment of ${downpayment.required} to complete your enrollment, then the registrar will assign your section.`
+      : 'Your application is approved. The registrar will enroll you shortly.',
+    type: 'admission',
+  });
+
   logger.info(
-    `Admission ${application.reference_number} accepted by admin ${req.user.userId}; student ${created.studentId} created; enrolled in ${section.grade_level_name} ${section.name}`,
+    `Admission ${application.reference_number} accepted by admin ${req.user.userId}; student ${created.studentId} created, awaiting downpayment of ${downpayment.remaining}`,
   );
 
   return sendOk(res, {
@@ -562,9 +565,153 @@ const acceptApplication = async (req, res) => {
     student: {
       id: created.studentId,
       user_id: created.userId,
+      student_number: created.studentNumber,
       email: application.email,
       temporary_password: temporaryPassword,
     },
+    downpayment,
+    academic_year: academicYear,
+  });
+};
+
+
+
+
+const enrollApplicant = async (req, res) => {
+  const applicationId = parseId(req.params.id);
+
+  if (!applicationId) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'Invalid application id.');
+  }
+
+  const application = await findApplication(applicationId);
+
+  if (!application) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, 'Application not found.');
+  }
+
+  if (!canTransition(application.status, 'enrolled')) {
+    return sendError(
+      res,
+      HTTP_STATUS.CONFLICT,
+      `An application that is ${application.status} cannot be enrolled.`,
+    );
+  }
+
+  if (!application.student_id) {
+    return sendError(res, HTTP_STATUS.CONFLICT, 'This application has no student account yet.');
+  }
+
+  const academicYear = application.academic_year_id
+    ? { id: application.academic_year_id, name: application.academic_year_name }
+    : await findActiveAcademicYear();
+
+  if (!academicYear) {
+    return sendError(res, HTTP_STATUS.BAD_REQUEST, 'No school year is marked active.');
+  }
+
+
+
+
+  const downpayment = await getDownpaymentRequirement(application.student_id, academicYear.id);
+
+  if (!downpayment.satisfied) {
+    return sendError(
+      res,
+      HTTP_STATUS.CONFLICT,
+      `The downpayment is not settled yet. ${downpayment.remaining} still due.`,
+    );
+  }
+
+
+
+
+  let section;
+
+  if (req.body && req.body.section_id) {
+    section = await findSectionWithHeadcount(pool, {
+      sectionId: Number(req.body.section_id),
+      academicYearId: academicYear.id,
+    });
+
+    if (!section) {
+      return sendError(res, HTTP_STATUS.NOT_FOUND, 'Section not found.');
+    }
+
+    if (section.grade_level_id !== application.grade_level_id) {
+      return sendError(
+        res,
+        HTTP_STATUS.BAD_REQUEST,
+        `${section.name} does not belong to ${application.grade_level_name}.`,
+      );
+    }
+
+    if (Number(section.student_count) >= Number(section.capacity) && req.body.override !== true) {
+      return sendError(
+        res,
+        HTTP_STATUS.BAD_REQUEST,
+        `${section.grade_level_name} ${section.name} is full (${section.student_count}/${section.capacity}).`,
+      );
+    }
+  } else {
+    const { section: openSection, reason } = await findOpenSection(pool, {
+      gradeLevelId: application.grade_level_id,
+      academicYearId: academicYear.id,
+    });
+
+    if (!openSection) {
+      return sendError(
+        res,
+        HTTP_STATUS.BAD_REQUEST,
+        reason === 'no_sections'
+          ? `${application.grade_level_name} has no sections yet.`
+          : `Every section in ${application.grade_level_name} is full. Choose one to over-fill it.`,
+      );
+    }
+
+    section = openSection;
+  }
+
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    await connection.execute(
+      `INSERT INTO enrollments (student_id, academic_year_id, section_id, enrollment_date, status)
+       VALUES (?, ?, ?, CURDATE(), 'active')
+       ON DUPLICATE KEY UPDATE section_id = VALUES(section_id), status = 'active'`,
+      [application.student_id, academicYear.id, section.id],
+    );
+
+
+
+    await applyFeeSchedule(connection, {
+      studentId: application.student_id,
+      academicYearId: academicYear.id,
+      gradeLevelId: application.grade_level_id,
+    });
+
+    await connection.execute(
+      `UPDATE admission_applications
+       SET status = 'enrolled', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [req.user.userId, applicationId],
+    );
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  logger.info(
+    `Admission ${application.reference_number} enrolled by admin ${req.user.userId} into section ${section.id}`,
+  );
+
+  return sendOk(res, {
+    application: await findApplication(applicationId),
     placement: {
       assigned: true,
       section_id: section.id,
@@ -607,6 +754,7 @@ const deleteApplication = async (req, res) => {
 
 module.exports = {
   listApplications,
+  enrollApplicant,
   returnApplication,
   getApplicationById,
   getApplicationDocument,

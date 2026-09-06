@@ -17,6 +17,7 @@ export const ROLE_LABEL = {
 };
 
 // Mirrors ACCESS_LEVELS in backend/src/utils/access-levels.js.
+export const CASHIER_LEVEL_ID = 8;
 export const REGISTRAR_LEVEL = 3;
 export const SUPER_ADMIN_LEVEL = 4;
 
@@ -36,6 +37,12 @@ export const portalHome = (user) => {
 
   if (user.role === 'admin' && user.access_level?.level === REGISTRAR_LEVEL) {
     return '/registrar';
+  }
+
+  // Cashier shares level 2 with Laboratory Staff, so the id is what separates
+  // them — the same reason the API guards on the id.
+  if (user.role === 'admin' && user.access_level?.id === CASHIER_LEVEL_ID) {
+    return '/cashier';
   }
 
   return roleHome(user.role);

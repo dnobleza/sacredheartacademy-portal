@@ -45,10 +45,20 @@ export const returnAdmission = async (id, payload) => {
 };
 
 /**
- * Approving places the student, so the grade level and section are required.
+ * Approving creates the student account and their charges but does not enroll:
+ * the downpayment has to be paid first.
  */
-export const acceptAdmission = async (id, payload) => {
+export const acceptAdmission = async (id, payload = {}) => {
   const response = await api.post(`/admin/admissions/${id}/accept`, payload);
+  return response.data.data;
+};
+
+/**
+ * Enrolls an accepted applicant once the downpayment is settled. Without a
+ * section_id the server picks the first one with room in that grade level.
+ */
+export const enrollAdmission = async (id, payload = {}) => {
+  const response = await api.post(`/admin/admissions/${id}/enroll`, payload);
   return response.data.data;
 };
 

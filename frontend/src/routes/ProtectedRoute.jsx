@@ -9,7 +9,7 @@ import { portalHome } from '../utils/roles';
  * authenticate-token and authorize-roles middleware. This just avoids showing
  * a page the API would refuse to fill.
  */
-function ProtectedRoute({ allowedRoles, minAccessLevel, exactAccessLevel }) {
+function ProtectedRoute({ allowedRoles, minAccessLevel, exactAccessLevel, accessLevelId }) {
   const { status, user } = useAuth();
   const location = useLocation();
 
@@ -40,6 +40,12 @@ function ProtectedRoute({ allowedRoles, minAccessLevel, exactAccessLevel }) {
   // screens are not a Super Admin's, so a higher level is refused too. Mirrors
   // require-exact-access-level on the server.
   if (exactAccessLevel !== undefined && user.access_level?.level !== exactAccessLevel) {
+    return <Navigate to={portalHome(user)} replace />;
+  }
+
+  // Two access levels can share a number (Cashier and Laboratory Staff are both
+  // level 2), so a portal that belongs to exactly one of them checks the id.
+  if (accessLevelId !== undefined && user.access_level?.id !== accessLevelId) {
     return <Navigate to={portalHome(user)} replace />;
   }
 

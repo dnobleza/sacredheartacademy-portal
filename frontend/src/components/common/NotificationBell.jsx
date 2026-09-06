@@ -14,6 +14,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../services/notificationsApi';
+import { CARD_RADIUS } from '../../theme';
 
 // The bell polls rather than holding a socket; the same interval the messages
 // page uses keeps the two feeling equally live without a second transport.
@@ -111,7 +112,7 @@ function NotificationBell() {
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { width: 360, maxWidth: '92vw', maxHeight: 420 } } }}
+        slotProps={{ paper: { sx: { width: 360, maxWidth: '92vw', maxHeight: 420, borderRadius: CARD_RADIUS } } }}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1 }}>
           <Typography sx={{ fontWeight: 800 }}>Notifications</Typography>

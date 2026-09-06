@@ -139,6 +139,10 @@ const issueSession = async (res, user) => {
     
     
     accessLevel: user.access_level,
+    
+    
+    
+    accessLevelId: user.access_level_id,
   };
 
   const accessToken = jwt.sign(tokenPayload, env.JWT_SECRET, {
