@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed:admin": "node database/seed-admin.js"
+    "seed:admin": "node database/seed-admin.js",
+    "db:setup": "node database/run-sql.js init",
+    "db:init": "node database/run-sql.js init",
+    "db:migrate": "node database/run-sql.js migrations"
   },
   "keywords": [],
   "author": "",
